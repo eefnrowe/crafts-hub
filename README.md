@@ -24,14 +24,13 @@ skills/<skill-name>/
 
 技能设计基于以下研究：
 
-| 来源 | 引用 | 应用于 |
-|------|------|--------|
-| ETH Zurich arXiv:2602.11988 | LLM 生成文件降低成功率 3%，增加成本 20%+ | 覆盖分析、最小充分性 |
-| Stanford arXiv:2307.03172 | U 型注意力曲线 | 结构设计（已有） |
-| Anthropic Context Engineering | 最小充分信息集、注意力预算 | 整体方法论 |
-| CodeIF-Bench arXiv:2503.22688 | 多轮交互中指令遗忘 | 红线回顾重申 |
-| Coding Agents arXiv:2603.20432 | 文件结构即隐式指令 | 引用文件模式 |
-| JetBrains NeurIPS 2025 | 简单上下文管理策略 | 迭代验证循环 |
-| AGENTS.md Linux Foundation | 跨工具开放标准 | 互操作附录 |
-| Cursor Agent Best Practices | 参考文件而非复制、条件加载 | 结构设计 |
-| Gemini CLI 文档 | `@file.md` import 机制 | 模块化指导 |
+| 来源 | 核心发现 | 应用于 |
+|------|---------|--------|
+| [ETH Zurich arXiv:2602.11988](https://arxiv.org/abs/2602.11988) | 上下文文件降低成功率、增加成本 20%+；冗余是主因；应只写最小必要要求 | 覆盖分析、最小充分性 |
+| [Stanford arXiv:2307.03172](https://arxiv.org/abs/2307.03172) | LLM 注意力呈 U 型曲线（首位效应 + 近因效应） | 结构设计：核心规则放首尾 |
+| [Anthropic Context Engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) | 最小充分信息集、从失败模式迭代添加规则 | 整体方法论、步骤 8 迭代 |
+| [CodeIF-Bench arXiv:2503.22688](https://arxiv.org/abs/2503.22688) | 多轮交互中指令遵循能力评测基准 | 红线回顾、文件长度控制 |
+| [Coding Agents arXiv:2603.20432](https://arxiv.org/abs/2603.20432) | Coding agent 具备文件结构隐式知识，可作为长上下文处理器 | 引用文件模式、渐进式披露 |
+| [AGENTS.md Linux Foundation](https://agents.md/) | 跨工具开放标准（60k+ 开源项目采用） | 互操作附录、多工具复用 |
+| [Cursor Agent Best Practices](https://cursor.com/blog/agent-best-practices) | 参考文件而非复制内容、条件加载 | 引用文件模式、结构设计 |
+| [Gemini CLI 文档](https://geminicli.com/docs/cli/gemini-md/) | `@file.md` import 机制、层级加载 | 模块化指导、import 语法 |
