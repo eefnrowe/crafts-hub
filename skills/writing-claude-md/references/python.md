@@ -1,4 +1,4 @@
-# Python 项目语言模板
+# Python 项目语言参考资料
 
 > 适用于：Python 3.10+ 项目，覆盖 FastAPI / Django / Flask 及通用 Python 项目
 
@@ -38,6 +38,26 @@
 | **MyPy strict** | 类型注解完整性、类型安全 |
 | **import-linter** | 分层依赖方向、模块间导入约束 |
 | **ast-grep** | AST 级别的模式禁止（async def、silent exception 等） |
+
+## 优先级分层
+
+生成 CLAUDE.md 时按以下优先级填充，空间不足时优先保证 Tier 1。
+
+### Tier 1：核心规则（几乎所有项目）
+- DI 注入规则（禁止手动实例化）
+- 全局状态 Final 标注
+
+### Tier 2：推荐规则（取决于项目风格）
+- 分层约束（仅 DDD/Clean Architecture 项目）
+- async/同步架构选择
+- 异常处理策略
+- 日志规范
+
+### Tier 3：边缘场景（特定条件才需要）
+- dataclass frozen（仅 DDD 项目 domain 层）
+- 路径/ID 校验（仅涉及文件/用户输入操作）
+- API 枚举约束（仅 API 接口层）
+- 维护同步义务（仅项目有质量门禁时）
 
 ## Python 特有约束（候选规则池）
 

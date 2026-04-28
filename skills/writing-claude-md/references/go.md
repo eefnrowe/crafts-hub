@@ -1,4 +1,4 @@
-# Go 项目语言模板
+# Go 项目语言参考资料
 
 > 适用于：Go 1.21+ 项目，覆盖 Gin / Echo / Fiber 及标准库项目
 
@@ -29,6 +29,27 @@
 | **staticcheck** | 高级静态分析：废弃 API、性能反模式 |
 | **gosec** | 安全扫描：硬编码凭证、SQL 注入、弱加密 |
 | **go test -race** | 竞态条件检测 |
+
+## 优先级分层
+
+生成 CLAUDE.md 时按以下优先级填充，空间不足时优先保证 Tier 1。
+
+### Tier 1：核心规则（几乎所有项目）
+- 错误处理：始终包装错误上下文 fmt.Errorf("context: %w", err)
+- context 传递：所有跨函数调用传 context.Context 作为第一个参数
+- 禁止 panic：业务代码禁止 panic
+
+### Tier 2：推荐规则（取决于项目风格）
+- 目录结构：cmd/ / internal/ / pkg/ / api/ 约定
+- 依赖方向：cmd/ → internal/ → pkg/，禁止反向
+- 接口设计：消费者定义接口，小且聚焦
+- goroutine 生命周期：每个 goroutine 必须有明确退出机制
+
+### Tier 3：边缘场景（特定条件才需要）
+- 通道方向标注
+- sync vs channel 选择策略
+- table-driven tests 模式
+- 竞态检测 -race
 
 ## Go 特有约束（候选规则池）
 

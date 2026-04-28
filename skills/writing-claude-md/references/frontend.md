@@ -1,4 +1,4 @@
-# 前端项目语言模板
+# 前端项目语言参考资料
 
 > 适用于：TypeScript/JavaScript 前端项目，覆盖 React / Vue / Svelte + Vite / Next.js / Nuxt
 
@@ -36,6 +36,29 @@
 | **TypeScript strict** | 类型安全：strictNullChecks、noImplicitAny、strictFunctionTypes |
 | **Vitest / Jest** | 测试框架：断言、mock、覆盖率 |
 | **Stylelint** | CSS 规范：属性排序、禁止 !important |
+
+## 优先级分层
+
+生成 CLAUDE.md 时按以下优先级填充，空间不足时优先保证 Tier 1。
+
+### Tier 1：核心规则（几乎所有项目）
+- 组件模型：仅函数式组件 + hooks（禁止 class 组件）
+- any 禁止：tsconfig.json strict + ESLint no-explicit-any
+- key 约束：列表渲染使用稳定唯一 key，禁止数组 index
+
+### Tier 2：推荐规则（取决于项目风格）
+- 状态管理方案选择及使用边界
+- 目录结构约定
+- interface vs type 选择
+- 命名导出 vs 默认导出
+- 副作用管理（useEffect 依赖数组）
+- SSR/SSG 及 server/client component 边界（仅 Next.js/Nuxt）
+
+### Tier 3：边缘场景（特定条件才需要）
+- 样式方案（Tailwind / CSS Modules / styled-components）
+- Suspense / ErrorBoundary 模式
+- 可空类型显式标注
+- 禁止内联样式
 
 ## 前端特有约束（候选规则池）
 

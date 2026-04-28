@@ -1,4 +1,4 @@
-# Java 项目语言模板
+# Java 项目语言参考资料
 
 > 适用于：Java 17+ 项目，覆盖 Spring Boot / Quarkus / Micronaut 及通用 Java 项目
 
@@ -33,6 +33,28 @@
 | **ArchUnit** | 分层约束、包依赖方向、命名约定 |
 | **Spotless** | 代码格式化（google-java-format 或 palantir） |
 | **google-java-format** | 缩进 2 空格、大括号风格、行宽 100 |
+
+## 优先级分层
+
+生成 CLAUDE.md 时按以下优先级填充，空间不足时优先保证 Tier 1。
+
+### Tier 1：核心规则（几乎所有项目）
+- DI 方式：构造器注入优先，@Autowired 仅用于测试
+- DTO 隔离：Controller 接收/返回 DTO，Service 操作 Domain Model
+- 全局异常处理：@ControllerAdvice + @ExceptionHandler
+
+### Tier 2：推荐规则（取决于项目风格）
+- 分层约束：Controller → Service → Repository → Entity
+- 包结构：按功能模块 vs 按层分包，明确选择
+- 事务管理：@Transactional 仅放在 Service 层
+- 不可变性：参数和变量尽量 final
+- Early return 优先
+
+### Tier 3：边缘场景（特定条件才需要）
+- 避免 Lombok @Data
+- 显式类型（避免 var）
+- 注释最小化策略
+- MapStruct 映射规范
 
 ## Java 特有约束（候选规则池）
 

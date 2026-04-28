@@ -1,4 +1,4 @@
-# Rust 项目语言模板
+# Rust 项目语言参考资料
 
 > 适用于：Rust 2021+ 项目，覆盖 Actix-web / Axum / Tokio 及标准库项目
 
@@ -31,6 +31,28 @@
 | **cargo audit** | 依赖安全漏洞扫描 |
 | **cargo deny** | 依赖许可证合规、重复依赖、废弃 crate |
 | **rustc 类型系统** | 所有权/借用规则、生命周期、trait bound（编译器强制） |
+
+## 优先级分层
+
+生成 CLAUDE.md 时按以下优先级填充，空间不足时优先保证 Tier 1。
+
+### Tier 1：核心规则（几乎所有项目）
+- unwrap 策略：业务代码禁止 unwrap()/expect()，使用 ? 或 ok_or
+- unsafe 策略：禁止 unsafe（除非有 safety 注释）
+- panic 策略：库代码禁止 panic，仅返回 Result
+
+### Tier 2：推荐规则（取决于项目风格）
+- Error 枚举模式：thiserror crate 定义错误枚举
+- clone 策略：避免不必要的 clone()，优先借用
+- 字符串：&str 用于借用，String 用于拥有所有权
+- 异步运行时选择（Tokio / async-std）
+
+### Tier 3：边缘场景（特定条件才需要）
+- Send 约束与 !Send 类型跨 await point
+- 取消安全性考虑
+- 错误链 #[source] / #[from] 属性
+- 属性测试 proptest
+- 基准测试 criterion.rs
 
 ## Rust 特有约束（候选规则池）
 
