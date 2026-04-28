@@ -22,7 +22,7 @@ description: "当需要创建或更新 CLAUDE.md 或重构项目级 AI 指令文
 digraph writing_claude_md {
     "0. 模式检测" [shape=diamond];
     "1. 项目探测\n（Explore Agent）" [shape=box];
-    "2. 语言识别+确认" [shape=box];
+    "2. 语言识别+技术栈扫描\n（Explore Agent）" [shape=box];
     "3. 工具链覆盖分析" [shape=box];
     "4. 交互式规则取舍\n（4 轮 AskUserQuestion）" [shape=box];
     "5. 结构设计" [shape=box];
@@ -32,8 +32,8 @@ digraph writing_claude_md {
     "8. 迭代优化\n（可选）" [shape=box];
 
     "0. 模式检测" -> "1. 项目探测\n（Explore Agent）";
-    "1. 项目探测\n（Explore Agent）" -> "2. 语言识别+确认";
-    "2. 语言识别+确认" -> "3. 工具链覆盖分析";
+    "1. 项目探测\n（Explore Agent）" -> "2. 语言识别+技术栈扫描\n（Explore Agent）";
+    "2. 语言识别+技术栈扫描\n（Explore Agent）" -> "3. 工具链覆盖分析";
     "3. 工具链覆盖分析" -> "4. 交互式规则取舍\n（4 轮 AskUserQuestion）";
     "4. 交互式规则取舍\n（4 轮 AskUserQuestion）" -> "5. 结构设计";
     "5. 结构设计" -> "6a. 全量重写" [label="新建/重写"];
@@ -68,12 +68,11 @@ Q0: "检测到已有 [文件名]，如何处理？"
 
 **必须收集：**
 - 目录结构（`ls` + 关键子目录 `find`）
-- 包管理配置（pyproject.toml / pom.xml / build.gradle / package.json / Cargo.toml / go.mod）
-- 多模块/多包结构检测：Maven `<packaging>pom</packaging>` + `<modules>` 的子模块 pom.xml；Gradle `include` 的子项目 build.gradle；pnpm/yarn workspace 的子包 package.json；Cargo workspace 成员 Cargo.toml；Go workspace 的 go.work
+- 包管理配置文件识别（仅确认 pyproject.toml / pom.xml / build.gradle / package.json / Cargo.toml / go.mod 哪些存在，内容由步骤 2 技术栈扫描读取）
 - Linter/Formatter 配置（ruff.toml / .eslintrc / checkstyle.xml / prettier.config / rustfmt.toml / .golangci.yml）
 - pre-commit hooks（.pre-commit-config.yaml / husky / lint-staged）
 - 测试配置（pytest.ini / jest.config / vitest.config）
-- 质量门禁脚本（.quality_gate/ / scripts/ 中的自定义检查）
+- 质量门禁脚本（.quality_gate/ / scripts/ tests/ test/ 中的自定义检查）
 
 **必须收集（冗余源）：**
 - README.md 内容（标记为冗余源，后续不重复写入）
@@ -83,9 +82,8 @@ Q0: "检测到已有 [文件名]，如何处理？"
 
 **可选收集：**
 - CI/CD 配置（.github/workflows / .gitlab-ci.yml / Jenkinsfile）
-- Monorepo 结构（nx.json / turborepo.json / Cargo workspace / Go workspace）
 
-## 步骤 2：语言识别 + 框架检测
+## 步骤 2：语言识别 + 技术栈扫描
 
 通过配置文件推断项目类型：
 
@@ -97,26 +95,28 @@ Q0: "检测到已有 [文件名]，如何处理？"
 | go.mod | Go |
 | Cargo.toml | Rust |
 
-从依赖声明推断框架：
-- Python: FastAPI / Django / Flask
-- Java: Spring Boot（需扫描子模块 pom.xml 的 `<parent>` 和 `<dependencies>`）/ Quarkus / Micronaut
-- 前端: React / Vue / Svelte + Vite / Next.js / Nuxt
-- Go: Gin / Echo / Fiber
-- Rust: Actix / Axum / Tokio
-
-**多模块检测：** 若根 pom.xml 含 `<packaging>pom</packaging>` 和 `<modules>`，需遍历子模块 pom.xml 检查实际框架依赖。根 POM 的 `<dependencyManagement>` 声明不等于实际使用——以子模块 `<dependencies>` 为准。
-
 **AskUserQuestion 确认：**
 
 ```
-Q1: "检测到项目类型为 [语言/框架]，确认吗？"
+Q1: "检测到项目语言为 [语言]，确认吗？"
     选项: 确认 / 不对，是其他类型
 ```
 
 确认后加载对应的 `references/<lang>.md` 语言参考资料。
 
+**技术栈扫描：** 加载参考资料后，启动 1 个 Explore Agent，按参考资料中"检测信号"表逐行扫描项目。检测信号表的三列（技术栈 / 检测文件或模式 / 检测关键字）即扫描指令：
+
+| 扫描源 | 方法 | 覆盖信号类型 |
+|--------|------|-------------|
+| 包管理配置文件（步骤 1 识别路径） | 读取内容匹配依赖声明中的关键字 | 依赖声明类（如 `seata-spring-boot-starter`） |
+| 配置文件（application.yml / bootstrap.yml / .env / config.toml 等） | 读取内容匹配关键字 | 配置项类（如 `spring.datasource.url` 含 `mysql`） |
+| 源码 | grep 注解、类名、import、Bean 定义等模式 | 源码模式类（如 `TransactionInterceptor` / `@EnableCaching`） |
+| 目录结构 | find 特定目录或文件模式 | 目录信号类（如 `db/migration/` / `templates/`） |
+
+输出**已检测技术栈清单**（如 "Spring Boot + MySQL + MyBatis + Seata + Redis + Nacos + Resilience4j"），供步骤 3 前置检查使用。
+
 若 `references/<lang>.md` 不存在（如 Kotlin/Scala 等非预设语言）：
-- 不报错，改为从步骤 1 的探测结果推断语言特性
+- 不报错，跳过技术栈扫描，改为从步骤 1 的探测结果推断语言特性
 - 跳过步骤 3 中对语言参考文件的 Tier 判定，仅基于工具链覆盖分析生成规则
 - 在步骤 6a 生成时，从项目代码结构中提取语言特有模式（如 Kotlin data class、coroutines 等）
 
@@ -124,7 +124,7 @@ Q1: "检测到项目类型为 [语言/框架]，确认吗？"
 
 按照 `coverage-analyzer.md` 方法论，**按 Tier 优先级分层处理**语言参考资料中的候选规则。
 
-**前置检查：** 根据步骤 1 收集的项目依赖和配置，确定项目实际使用的技术栈。规则依赖的框架/工具不在项目依赖中时，标记"不适用"。
+**前置检查：** 根据步骤 2 技术栈扫描输出的已检测技术栈清单，判定每条候选规则依赖的技术栈是否被检测到。未检测到的技术栈对应规则标记"不适用"（跳过）。
 
 ```
 第一轮：Tier 1 核心规则（直接纳入）
@@ -166,7 +166,7 @@ Q1: "检测到项目类型为 [语言/框架]，确认吗？"
 
 **第一轮：核心架构**（AskUserQuestion，3 个问题）
 
-基于步骤 1 的探测结果，预分析架构现状：
+基于步骤 1 的探测结果和步骤 2 的技术栈扫描结果，预分析架构现状：
 - 分层模式（Python: domain/application → DDD，Java: controllers/models → MVC，前端: pages/components + services → 简单分层，Go/Rust: cmd/ + internal/ → 简单分层，无分层目录 → 无架构）
 - DI 方式（Java: Spring @Autowired / CDI，Python: dishka / FastAPI Depends，前端: React Context / Vue provide-inject，Go: wire / dig，Rust: trait + Box<dyn>，工厂类 → 手动，无 DI 框架）
 - 异常策略（Java: @ControllerAdvice / ResponseEntityExceptionHandler，Python: @app.exception_handler / FastAPI HTTPException，前端: ErrorBoundary / 全局 catch，Go: panic/recover / error return，Rust: Result<T,E> / thiserror，零统一处理）
@@ -202,7 +202,7 @@ Explore Agent 分析提取：
 
 **第三轮：代码规范**（AskUserQuestion，3 个问题）
 
-基于步骤 1 的探测结果，预分析代码规范现状：
+基于步骤 1 的探测结果和步骤 2 的技术栈扫描结果，预分析代码规范现状：
 - 同步/异步现状（Python: async/await，Java: CompletableFuture/AsyncContext，前端: Promise/async-await，Go: goroutine/channel，Rust: tokio::spawn/async fn）
 - 测试现状（Python: pytest-cov + fixture 密度，Java: JUnit5 + 测试结构对称性，前端: vitest/jest + testing-library，Go: go test + table-driven，Rust: cargo test + proptest）
 
