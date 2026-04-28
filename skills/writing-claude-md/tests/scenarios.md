@@ -27,11 +27,12 @@ Tier 1 前置检查：
 
 Tier 2：
 - 分层约束 → 无 domain 层 → 不适用 ✅
-- async/同步 → 适用 → 等待 Q5
+- 通用类库 → 适用 → 等待 Q5
+- async/同步 → 适用 → 等待 Q6
 - 异常处理 → 适用 → 等待 Q4
 - 日志规范 → 无 structlog → 不适用 ✅
-- 测试框架 → 适用 → 等待 Q6
-- 安全边界 → 适用 → 等待 Q7
+- 测试框架 → 适用 → 等待 Q7
+- 安全边界 → 适用 → 等待 Q8
 
 Tier 3：
 - dataclass frozen → 无 domain 层 → 不适用 ✅
@@ -45,10 +46,11 @@ Tier 3：
 | Q2 分层架构 | 无特定架构 | 分层: 不激活 |
 | Q3 DI 方式 | 无DI | DI: 不激活 |
 | Q4 异常处理 | 简单try-catch | 异常: 不激活 |
-| Q5 同步/异步 | 全同步 | async: 激活 |
-| Q6 测试策略 | 最小测试 | 测试: 不激活 |
-| Q7 安全校验 | 基本校验 | 安全: 不激活 |
-| Q8 特有规则 | 跳过 | Tier 3: 全不纳入 |
+| Q5 通用类库 | 无 | 通用类库: 不激活 |
+| Q6 同步/异步 | 全同步 | async: 激活 |
+| Q7 测试策略 | 最小测试 | 测试: 不激活 |
+| Q8 安全校验 | 基本校验 | 安全: 不激活 |
+| Q9 特有规则 | 跳过 | Tier 3: 全不纳入 |
 
 **步骤 6a 生成预期：**
 - Tier 1: Final + 命令表 + 项目身份 → ~35 行
@@ -72,7 +74,7 @@ Tier 3：
 
 **输入项目：**
 ```
-pyproject.toml (fastapi, dishka, pydantic, structlog, uvicorn)
+pyproject.toml (fastapi, dishka, pydantic, structlog, uvicorn, company-common-utils)
 ruff 配置 + ast-grep + import-linter
 质量门禁: .quality_gate/ 目录
 目录结构: src/domain/, src/application/, src/interface/, src/infrastructure/
@@ -87,6 +89,7 @@ Tier 1 前置检查：
 
 Tier 2：
 - 分层约束 → 有 domain/application 层 → 适用
+- 通用类库 → 有 company-common-utils → 适用
 - async/同步 → 适用
 - 异常处理 → 适用
 - 日志规范 → 有 structlog → 适用 → 通用池
@@ -105,25 +108,27 @@ Tier 3：
 | Q2 分层架构 | DDD/Clean Architecture | 分层: 激活 |
 | Q3 DI 方式 | 自动(框架管理) | DI: 激活 |
 | Q4 异常处理 | 全局拦截 | 异常: 激活 |
-| Q5 同步/异步 | 全同步 | async: 激活（反直觉） |
-| Q6 测试策略 | 测试覆盖要求 | 测试: 激活 |
-| Q7 安全校验 | 严格边界校验 | 安全: 激活 |
-| Q8 特有规则 | "Provider 同步更新 PROHIBITED_INSTANTIATION" | Tier 3 维护同步: 激活 |
+| Q5 通用类库 | 有统一封装(company-common-utils: 统一异常+日志) | 通用类库: 激活 |
+| Q6 同步/异步 | 全同步 | async: 激活（反直觉） |
+| Q7 测试策略 | 测试覆盖要求 | 测试: 激活 |
+| Q8 安全校验 | 严格边界校验 | 安全: 激活 |
+| Q9 特有规则 | "Provider 同步更新 PROHIBITED_INSTANTIATION" | Tier 3 维护同步: 激活 |
 
 **步骤 6a 生成预期：**
 - Tier 1: DI 注入 + Final + 命令表 + 项目身份 → ~50 行
-- Tier 2 激活: 分层 + DI + 异常 + async + 测试 + 安全 → ~75 行
+- Tier 2 激活: 分层 + DI + 异常 + 通用类库 + async + 测试 + 安全 → ~85 行
 - Tier 2 通用池: 日志规范（行数余量判断）→ ~10 行
-- Tier 3 (Q8): 维护同步义务 → ~15 行
+- Tier 3 (Q9): 维护同步义务 → ~15 行
 - 红线: ~3 行
-- **总计: ~143-153 行**
+- **总计: ~153-163 行**
 
 **通过判定：**
 - [ ] 包含 DI 注入规则 + ✅/❌ 示例
 - [ ] 包含分层架构规则
+- [ ] 包含通用类库依赖表格（库名 | 用途 | 关键约定）
 - [ ] 包含 async/同步规则（标注反直觉）
-- [ ] 包含维护同步义务（Q8 激活）
-- [ ] 不包含 dataclass frozen（Tier 3 未被 Q8 提及）
+- [ ] 包含维护同步义务（Q9 激活）
+- [ ] 不包含 dataclass frozen（Tier 3 未被 Q9 提及）
 - [ ] 日志规范是否纳入取决于行数余量
 - [ ] ≤ 200 行
 - [ ] 红线回顾在末尾
