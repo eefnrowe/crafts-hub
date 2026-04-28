@@ -143,6 +143,23 @@
 - 命名：`<component>.test.tsx`，函数 `test('should <预期> when <条件>')`
 - 原则：测试用户行为而非实现细节（点击、输入、断言 DOM）
 - Mock：`vi.mock()` / `jest.mock()`，优先 MSW（Mock Service Worker）拦截网络
+- **TDD 流程**（Tier 2，Q7=TDD优先时激活）
+  - 红灯→绿灯→重构：先写失败测试 → 最小实现通过 → 重构
+  - 使用 `vitest --watch` 或 `jest --watch` 自动运行
+  - ✅ 组件测试优先测行为（用户交互），非实现细节
+  - ✅ 使用 `testing-library` 查询（`getByRole`、`getByText`），不用 `querySelector`
+  - ❌ 禁止先写组件再补测试
+- **测试覆盖要求**（Tier 2，Q7=覆盖要求时激活）
+  - 配置 `vitest`/`jest` 覆盖率收集，设置阈值（如 ≥ 80%）
+  - 覆盖率关注组件和 hooks，不要求样式/配置文件覆盖
+  - ✅ CI 中覆盖率检查作为门禁
+  - ❌ 禁止为凑覆盖率测试内部实现细节
+- **安全边界校验**（Tier 2，Q8=严格边界校验时激活）
+  - XSS 防护：禁止 `dangerouslySetInnerHTML`（React）/ `v-html`（Vue），使用 DOMPurify 净化
+  - 输入校验：表单提交前做客户端校验 + 服务端二次校验，客户端校验仅为 UX 优化
+  - 路由守卫：敏感路由必须有 auth guard，未授权时重定向到登录页
+  - ✅ 使用框架提供的安全 API（如 React JSX 自动转义）
+  - ❌ 禁止将用户输入直接插入 URL 参数或 HTML 属性
 
 ## 命名约定
 

@@ -75,13 +75,25 @@
 - **dataclass frozen**：domain 层 dataclass 必须 `frozen=True`
 - **全局状态**：模块级变量必须 `Final` 标注，缓存需豁免注释
 - **异常三阶段**：domain raise → application 透传 → interface 全局拦截
+- **各层独立异常处理**（Tier 2，Q4=各层独立时激活）
+  - Repository 层：捕获数据库异常（如 `IntegrityError`、`OperationalError`），抛出领域异常
+  - Service 层：捕获领域异常，包装为业务异常（如 `BusinessError`），附加业务上下文
+  - API 层：捕获业务异常，映射为 HTTP 状态码（如 `BusinessError → 422`）
+  - ✅ 每层仅转换异常类型，不吞掉原始异常信息
+  - ❌ 禁止 Repository 层直接抛出 HTTP 相关异常（层级跨越）
 - **日志**：使用 structlog 而非 logging，except 记录用 `exc_info=True`
 
 ### 边界校验类
 
-- **路径校验**：`Path.resolve()` + `is_relative_to()` 防路径遍历
-- **ID 校验**：拒绝 `/`、`\`、`..`
+- **路径校验**：`Path.resolve()` + `is_relative_to()` 防路径遍历，使用白名单目录检查
+- **ID 校验**：所有资源 ID 使用 UUID，禁止自增 ID 暴露给外部 API，拒绝 `/`、`\`、`..`
 - **API 枚举**：`Literal[...]` 或 `Field(pattern=...)`
+- **安全边界校验**（Tier 2，Q8=严格边界校验时激活）
+  - 路径校验：禁止用户输入直接拼入文件路径，使用 `pathlib.Path.resolve()` + 白名单目录检查
+  - ID 校验：所有资源 ID 使用 UUID，禁止自增 ID 暴露给外部 API
+  - API 枚举防护：敏感操作不返回差异化的错误信息（如"用户不存在"和"密码错误"统一返回"认证失败"）
+  - ✅ Pydantic model 校验入参，FastAPI 依赖注入做权限检查
+  - ❌ 禁止 `os.path.join(user_input, filename)` 未做路径遍历检查
 
 ### 维护义务类
 
@@ -127,6 +139,16 @@
 - 依赖 mock：通过 DI 框架的 MockProvider（如 Dishka MockProvider），禁止手动 mock
 - 禁止 mock 领域层：业务逻辑测试使用真实对象
 - fixtures：`conftest.py` 共享 fixtures
+- **TDD 流程**（Tier 2，Q7=TDD优先时激活）
+  - 红灯→绿灯→重构循环：先写失败测试 → 最小实现通过 → 重构
+  - 使用 `pytest-watch` 自动运行（`ptw --clear`）
+  - ✅ 每个新功能/修复从写测试开始
+  - ❌ 禁止先写实现再补测试
+- **测试覆盖要求**（Tier 2，Q7=覆盖要求时激活）
+  - 配置 `pytest-cov`，设置 `fail_under` 阈值（如 ≥ 80%）
+  - 覆盖率只看业务逻辑层（Service/Domain），不要求 Controller/Config 层
+  - ✅ CI 中 `pytest --cov --cov-fail-under=80` 作为门禁
+  - ❌ 禁止为凑覆盖率写无意义测试
 
 ## 命名约定
 

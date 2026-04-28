@@ -64,6 +64,11 @@
 - **DTO 隔离**：Controller 接收/返回 DTO，Service 操作 Domain Model，Entity 映射数据库
 - **包结构**：按功能模块分包（com.example.feature.*）vs 按层分包（com.example.controller.*），明确选择
 - **DI 方式**：构造器注入优先，`@Autowired` 仅用于测试
+- **工厂模式 DI**（Tier 2，Q3=手动时激活）
+  - ✅ 通过 Factory 类统一创建实例：`ServiceFactory.createUserService()`
+  - ✅ Factory 方法返回接口类型，不返回具体实现
+  - ❌ 禁止直接 `new ServiceImpl()`（除 Factory 内部）
+  - ❌ 禁止在 Factory 外部持有实现类的直接引用
 
 ### 代码规范类
 
@@ -79,6 +84,12 @@
 - **Service 层**：抛出业务异常（自定义异常类），不 catch
 - **Controller 层**：禁止 try-catch，由全局处理器拦截
 - **事务管理**：`@Transactional` 仅放在 Service 层类级别
+- **各层独立异常处理**（Tier 2，Q4=各层独立时激活）
+  - DAO 层：捕获技术异常，抛出 `RuntimeException`（禁止抛出受检异常）
+  - Service 层：捕获 RuntimeException，包装为业务异常（如 `BusinessException`）
+  - API/Controller 层：捕获业务异常，映射为 HTTP 状态码
+  - ✅ 每层仅处理本层关注点，不吞掉上层异常信息
+  - ❌ 禁止 DAO 层直接抛出业务异常（层级跨越）
 
 ### 测试类
 

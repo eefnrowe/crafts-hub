@@ -63,10 +63,23 @@
 ### 代码规范类
 
 - **错误处理**：`if err != nil { return fmt.Errorf("context: %w", err) }` 始终包装错误上下文
+- **各层独立错误处理**（Tier 2，Q4=各层独立时激活）
+  - Repository 层：包装底层错误 `fmt.Errorf("repository: %w", err)`，保留错误链
+  - Service 层：用 `errors.Is`/`errors.As` 判断错误类型，返回业务级错误
+  - Handler 层：将业务错误映射为 HTTP 状态码（如 `ErrNotFound → 404`）
+  - ✅ 每层用 `%w` 包装，保持 `errors.Is`/`errors.As` 可追溯
+  - ❌ 禁止 Repository 层直接返回 HTTP 状态码
 - **禁止 panic**：业务代码禁止 panic，仅允许 init() 和不可恢复场景
 - **context 传递**：所有跨函数调用传 `context.Context` 作为第一个参数
 - **nil 检查**：函数返回 error 时，调用者必须检查 error（不检查返回值）
 - **包循环**：禁止包循环导入（编译器强制，但架构设计时需注意）
+- **安全边界校验**（Tier 2，Q8=严格边界校验时激活）
+  - 路径校验：使用 `filepath.Rel()` + `strings.HasPrefix` 检查路径遍历，禁止用户输入直接拼入文件路径
+  - ID 校验：外部 API 使用 UUID 或 opaque token，禁止暴露自增 ID
+  - SQL 注入：强制使用参数化查询（`db.Query("SELECT ... WHERE id = $1", id)`），禁止字符串拼接 SQL
+  - API 枚举防护：统一错误响应，不泄露内部状态差异
+  - ✅ `net/http` middleware 统一做 auth + input validation
+  - ❌ 禁止 `fmt.Sprintf("SELECT * FROM %s", tableName)`
 
 ### 并发类
 
@@ -81,6 +94,16 @@
 - **测试文件**：`*_test.go` 与被测文件同目录
 - **集成测试**：`*_test.go` + `//go:build integration` 标签
 - **Benchmark**：`BenchmarkXxx(b *testing.B)` 放在测试文件中
+- **TDD 流程**（Tier 2，Q7=TDD优先时激活）
+  - 红灯→绿灯→重构：先写失败测试 → 最小实现通过 → 重构
+  - 使用 `github.com/cweill/gotests` 生成测试骨架
+  - ✅ Table-driven test 作为主要测试模式
+  - ❌ 禁止先写实现再补测试
+- **测试覆盖要求**（Tier 2，Q7=覆盖要求时激活）
+  - 配置 `go test -cover`，设置覆盖阈值
+  - 使用 `go test -coverprofile=coverage.out && go tool cover -func=coverage.out` 检查
+  - ✅ CI 中 `go test -cover -coverprofile=coverage.out` + 阈值检查作为门禁
+  - ❌ 禁止为凑覆盖率写无意义测试
 
 ## 框架特定规则
 

@@ -112,6 +112,11 @@ Q1: "检测到项目类型为 [语言/框架]，确认吗？"
 
 确认后加载对应的 `references/<lang>.md` 语言参考资料。
 
+若 `references/<lang>.md` 不存在（如 Kotlin/Scala 等非预设语言）：
+- 不报错，改为从步骤 1 的探测结果推断语言特性
+- 跳过步骤 3 中对语言参考文件的 Tier 判定，仅基于工具链覆盖分析生成规则
+- 在步骤 6a 生成时，从项目代码结构中提取语言特有模式（如 Kotlin data class、coroutines 等）
+
 ## 步骤 3：工具链覆盖分析（渐进式披露）
 
 按照 `coverage-analyzer.md` 方法论，**按 Tier 优先级分层处理**语言参考资料中的候选规则。
@@ -158,13 +163,20 @@ Q1: "检测到项目类型为 [语言/框架]，确认吗？"
 
 **第一轮：核心架构**（AskUserQuestion，3 个问题）
 
+基于步骤 1 的探测结果，预分析架构现状：
+- 分层模式（Python: domain/application → DDD，Java: controllers/models → MVC，前端: pages/components + services → 简单分层，Go/Rust: cmd/ + internal/ → 简单分层，无分层目录 → 无架构）
+- DI 方式（Java: Spring @Autowired / CDI，Python: dishka / FastAPI Depends，前端: React Context / Vue provide-inject，Go: wire / dig，Rust: trait + Box<dyn>，工厂类 → 手动，无 DI 框架）
+- 异常策略（Java: @ControllerAdvice / ResponseEntityExceptionHandler，Python: @app.exception_handler / FastAPI HTTPException，前端: ErrorBoundary / 全局 catch，Go: panic/recover / error return，Rust: Result<T,E> / thiserror，零统一处理）
+
+用作 Q2/Q3/Q4 的第一个选项。
+
 ```
 Q2: "项目是否采用分层架构？"
-    选项: DDD/Clean Architecture / MVC / 简单分层(无严格约束) / 无特定架构
+    选项: [检测结果]（如"DDD: domain/application/infrastructure 分层"） / DDD/Clean Architecture / MVC / 简单分层(无严格约束) / 无特定架构
 Q3: "依赖注入方式？"
-    选项: 自动(框架管理) / 手动(工厂模式) / 无DI
+    选项: [检测结果]（如"自动: Spring Boot @Autowired"） / 自动(框架管理) / 手动(工厂模式) / 无DI
 Q4: "异常处理策略？"
-    选项: 全局拦截(统一错误响应) / 各层独立处理 / 简单try-catch
+    选项: [检测结果]（如"全局拦截: @ControllerAdvice 统一错误响应"） / 全局拦截(统一错误响应) / 各层独立处理 / 简单try-catch
 ```
 
 **第二轮：通用类库探测**（AskUserQuestion，1 个问题）
@@ -185,13 +197,17 @@ Explore Agent 分析提取：
 
 **第三轮：代码规范**（AskUserQuestion，3 个问题）
 
-基于步骤 1 的探测结果，预分析同步/异步现状（检测 async/await、Promise、goroutine、tokio::spawn 等使用情况），用作 Q6 的第一个选项。
+基于步骤 1 的探测结果，预分析代码规范现状：
+- 同步/异步现状（Python: async/await，Java: CompletableFuture/AsyncContext，前端: Promise/async-await，Go: goroutine/channel，Rust: tokio::spawn/async fn）
+- 测试现状（Python: pytest-cov + fixture 密度，Java: JUnit5 + 测试结构对称性，前端: vitest/jest + testing-library，Go: go test + table-driven，Rust: cargo test + proptest）
+
+用作 Q6/Q7 的第一个选项。
 
 ```
 Q6: "是否有同步/异步架构约束？"
     选项: [检测结果]（如"全异步: async def + await + asyncio.run"） / 全同步 / 混合(无约束)
 Q7: "测试策略？"
-    选项: TDD优先 / 测试覆盖要求 / 最小测试 / 无特殊要求
+    选项: [检测结果]（如"覆盖要求: pytest-cov ≥ 80%"） / TDD优先 / 测试覆盖要求 / 最小测试 / 无特殊要求
 Q8: "是否有安全/边界校验要求？"
     选项: 严格边界校验 / 基本校验 / 无特殊要求
 ```
@@ -248,15 +264,23 @@ Q9: "有哪些项目特有的、不显而易见的规则？
 
 第二层：Tier 2 规则（条件纳入）
   → 仅纳入步骤 4 用户回答激活的 Tier 2 规则
-  → 用户答"无特定架构" → 跳过分层约束规则
-  → 用户答"无DI" → 跳过 DI 注入规则
-  → Q5 选"无，跳过" → 跳过通用类库规则
+
+  Q&A → Tier 2 激活映射表：
+  | 问题 | 激活（写入规则） | 跳过 |
+  |------|-----------------|------|
+  | Q2 分层 | [检测结果] DDD/MVC/简单分层 → 写入对应分层约束规则 | 无特定架构 |
+  | Q3 DI | [检测结果] 自动/手动 → 写入对应 DI 注入规则 | [检测结果] 无DI / 无DI |
+  | Q4 异常 | [检测结果] 全局拦截/各层独立 → 写入对应异常处理规则 | [检测结果] 简单try-catch / 简单try-catch |
+  | Q5 通用类库 | 有，请自行探测 / Other | 无，跳过 |
+  | Q6 异步 | [检测结果] 全异步等 → 写入 async/同步规则；[检测结果] 全同步 + 天然异步框架（FastAPI/Node/Actix）→ 仍写入 async 规则（标注反直觉） | [检测结果] 全同步（非异步框架）/ 全同步 / 混合(无约束) |
+  | Q7 测试 | [检测结果] TDD/覆盖要求 → 写入对应测试框架规则 | [检测结果] 最小测试 / 最小测试 / 无特殊要求 |
+  | Q8 安全 | 严格边界校验 | 基本校验 / 无特殊要求 |
+
+  Q5 细化：
   → Q5 选"有，请自行探测" → 纳入 Explore Agent 自动识别的类库规范摘要，放入首位效应区域
   → Q5 选 Other（提供了路径或标识）→ 纳入针对性分析的类库规范摘要，放入首位效应区域
-  → 用户选 Q6 检测结果（确认现状）→ 以检测结果为基准写入 async/同步规则
-  → 用户答"全同步"或"混合(无约束)" → 跳过 async/同步规则
-  → 用户答"无特殊要求/基本校验" → 跳过安全边界规则
-  → 无 Q&A 映射的 Tier 2 规则（通用池）：行数 < 120 行时纳入，否则跳过
+
+  无 Q&A 映射的 Tier 2 规则（通用池）：行数 < 120 行时纳入，否则跳过
   → 放在中间区域
 
 第三层：Tier 3 规则（按需纳入）

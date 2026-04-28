@@ -84,6 +84,12 @@
 - **错误链**：`#[source]` 属性保留错误链，`#[from]` 自动转换
 - **错误上下文**：`anyhow::Context` 或 `eyre` 添加上下文信息
 - **禁止 Box<dyn Error>**：使用具体错误类型或 `anyhow::Error`
+- **各层独立错误处理**（Tier 2，Q4=各层独立时激活）
+  - Data 层：用 `thiserror` 定义数据层错误枚举（如 `DataError::Io`、`DataError::Query`）
+  - Service 层：定义业务错误枚举，用 `From<DataError>` 转换底层错误
+  - API 层：将业务错误映射为 HTTP 响应（如 `impl IntoResponse for AppError`）
+  - ✅ 每层错误类型独立，通过 `From` trait 自动转换
+  - ❌ 禁止 Data 层直接返回 HTTP 响应类型
 
 ## 框架特定规则
 
@@ -127,6 +133,23 @@
 - 属性测试：`proptest` crate 用于边界条件覆盖
 - Mock：`mockall` crate，仅 mock 外部依赖
 - 基准测试：`#[bench]`（需 `#![feature(test)]`）或 criterion.rs
+- **TDD 流程**（Tier 2，Q7=TDD优先时激活）
+  - 红灯→绿灯→重构：先写 `#[test]` 失败测试 → 最小实现通过 → 重构
+  - 使用 `cargo watch -x test` 自动运行测试
+  - ✅ 结合 `proptest` 做属性测试，覆盖边界条件
+  - ❌ 禁止先写实现再补测试
+- **测试覆盖要求**（Tier 2，Q7=覆盖要求时激活）
+  - 配置 `cargo-tarpaulin` 或 `cargo-llvm-cov` 生成覆盖率报告
+  - 设置覆盖阈值（如 ≥ 80%）
+  - ✅ CI 中覆盖率检查作为门禁
+  - ❌ 禁止为凑覆盖率写无意义测试
+- **安全边界校验**（Tier 2，Q8=严格边界校验时激活）
+  - 路径校验：使用 `std::path::Path::canonicalize()` + 前缀检查防止路径遍历
+  - ID 校验：外部 API 使用 UUID（`uuid` crate），禁止暴露自增 ID
+  - 输入校验：使用 `validator` crate 对 struct 字段做声明式校验（`#[validate]`）
+  - API 枚举防护：统一错误响应，不泄露内部错误类型差异
+  - ✅ Axum extractor（`Path<T>`、`Json<T>`）自动校验并拒绝无效输入
+  - ❌ 禁止将用户输入直接用于文件系统操作或数据库查询拼接
 
 ## 命名约定
 
