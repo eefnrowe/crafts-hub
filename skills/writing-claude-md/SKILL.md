@@ -14,7 +14,7 @@ description: "当需要创建或更新 CLAUDE.md 或重构项目级 AI 指令文
 **量化证据：**
 - LLM 生成的上下文文件平均降低成功率 3%，增加推理成本 20%+（ETH 研究）
 - 冗余是主因：移除项目已有文档后，上下文文件才显示正面效果
-- 指令遵循随对话长度递减（CodeIF-Bench）
+- 多轮交互中指令遵循面临挑战（CodeIF-Bench）
 
 ## 流程图
 
@@ -69,6 +69,7 @@ Q0: "检测到已有 [文件名]，如何处理？"
 **必须收集：**
 - 目录结构（`ls` + 关键子目录 `find`）
 - 包管理配置（pyproject.toml / pom.xml / build.gradle / package.json / Cargo.toml / go.mod）
+- 多模块/多包结构检测：Maven `<packaging>pom</packaging>` + `<modules>` 的子模块 pom.xml；Gradle `include` 的子项目 build.gradle；pnpm/yarn workspace 的子包 package.json；Cargo workspace 成员 Cargo.toml；Go workspace 的 go.work
 - Linter/Formatter 配置（ruff.toml / .eslintrc / checkstyle.xml / prettier.config / rustfmt.toml / .golangci.yml）
 - pre-commit hooks（.pre-commit-config.yaml / husky / lint-staged）
 - 测试配置（pytest.ini / jest.config / vitest.config）
@@ -98,10 +99,12 @@ Q0: "检测到已有 [文件名]，如何处理？"
 
 从依赖声明推断框架：
 - Python: FastAPI / Django / Flask
-- Java: Spring Boot / Quarkus / Micronaut
+- Java: Spring Boot（需扫描子模块 pom.xml 的 `<parent>` 和 `<dependencies>`）/ Quarkus / Micronaut
 - 前端: React / Vue / Svelte + Vite / Next.js / Nuxt
 - Go: Gin / Echo / Fiber
 - Rust: Actix / Axum / Tokio
+
+**多模块检测：** 若根 pom.xml 含 `<packaging>pom</packaging>` 和 `<modules>`，需遍历子模块 pom.xml 检查实际框架依赖。根 POM 的 `<dependencyManagement>` 声明不等于实际使用——以子模块 `<dependencies>` 为准。
 
 **AskUserQuestion 确认：**
 
@@ -170,6 +173,8 @@ Q1: "检测到项目类型为 [语言/框架]，确认吗？"
 
 用作 Q2/Q3/Q4 的第一个选项。
 
+`[检测结果]` 选项格式：label 写 `检测值(当前现状)`（如"DDD(当前现状)"），**禁止追加 "(Recommended)"**——检测值是现状陈述而非推荐。其他选项可正常使用 "(Recommended)"。
+
 ```
 Q2: "项目是否采用分层架构？"
     选项: [检测结果]（如"DDD: domain/application/infrastructure 分层"） / DDD/Clean Architecture / MVC / 简单分层(无严格约束) / 无特定架构
@@ -201,7 +206,7 @@ Explore Agent 分析提取：
 - 同步/异步现状（Python: async/await，Java: CompletableFuture/AsyncContext，前端: Promise/async-await，Go: goroutine/channel，Rust: tokio::spawn/async fn）
 - 测试现状（Python: pytest-cov + fixture 密度，Java: JUnit5 + 测试结构对称性，前端: vitest/jest + testing-library，Go: go test + table-driven，Rust: cargo test + proptest）
 
-用作 Q6/Q7 的第一个选项。
+用作 Q6/Q7 的第一个选项。`[检测结果]` 选项格式同第一轮：label 写 `检测值(当前现状)`，**禁止追加 "(Recommended)"**。
 
 ```
 Q6: "是否有同步/异步架构约束？"

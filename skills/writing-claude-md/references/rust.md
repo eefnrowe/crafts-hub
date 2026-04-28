@@ -21,6 +21,15 @@
 | 文档生成 | `cargo doc --open` |
 | 全部检查 | `cargo fmt --check && cargo clippy -- -D warnings && cargo test` |
 
+### Workspace 检测
+
+| 信号 | 含义 | 检测方式 |
+|------|------|---------|
+| 根 `Cargo.toml` 含 `[workspace]` | Cargo workspace（多 crate） | 读取 Cargo.toml |
+| 根 `Cargo.toml` 含 `members = [...]` | workspace 成员列表 | 读取 `workspace.members` |
+| 多个子目录各有 `Cargo.toml` | 多 crate 项目 | `find . -maxdepth 3 -name 'Cargo.toml'` |
+| `Cargo.toml` 含 `[workspace.dependencies]` | workspace 共享依赖版本 | workspace 级依赖统一管理 |
+
 ## 工具链覆盖清单
 
 | 工具 | 覆盖的规则 |
@@ -53,6 +62,149 @@
 - 错误链 #[source] / #[from] 属性
 - 属性测试 proptest
 - 基准测试 criterion.rs
+
+## 检测信号
+
+### 数据库
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| PostgreSQL | Cargo.toml / Rust 源码 | `sqlx` + `postgres` feature / `diesel` + `postgres` feature / `tokio-postgres` |
+| MySQL | Cargo.toml / Rust 源码 | `sqlx` + `mysql` feature / `diesel` + `mysql` feature |
+| SQLite | Cargo.toml / Rust 源码 | `sqlx` + `sqlite` feature / `diesel` + `sqlite` feature / `rusqlite` |
+| MongoDB | Cargo.toml / Rust 源码 | `mongodb` / `bson` |
+| Redis | Cargo.toml / Rust 源码 | `redis` / `deadpool-redis` |
+| Elasticsearch | Cargo.toml / Rust 源码 | `elasticsearch` / `rs-es` |
+| 连接池 | Cargo.toml / Rust 源码 | `deadpool` / `bb8` / `r2d2` / `sqlx::Pool` |
+| ORM 框架 | Cargo.toml / Rust 源码 | `sea-orm` / `diesel` / `sqlx`（query builder） |
+
+### 事务/数据库配置
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| sqlx 事务 | Rust 源码 | `tx.begin()` / `Transaction` / `sqlx::Transaction` / `query!.as_execute()` |
+| diesel 事务 | Rust 源码 | `conn.transaction(` / `diesel::connection::TransactionManager` |
+| sea-orm 事务 | Rust 源码 | `txn.begin()` / `TransactionTrait` / `sea_orm::Transaction` |
+
+### 认证/鉴权
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| JWT (jsonwebtoken) | Cargo.toml / Rust 源码 | `jsonwebtoken` / `encode` / `decode` / `Validation` |
+| Axum auth extractor | Rust 源码 | 自定义 `FromRequestParts` 实现 / `AuthUser` / auth middleware layer |
+| Actix auth extractor | Rust 源码 | `FromRequest` trait 实现 / `Identity` / auth middleware |
+| OAuth2 | Cargo.toml / Rust 源码 | `oauth2` crate / `openidconnect` crate |
+
+### 数据库迁移
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| sqlx-cli | `migrations/` 目录 | `sqlx migrate add` / `.sql` 文件 |
+| diesel-cli | `migrations/` 目录 | `diesel migration generate` / `up.sql` / `down.sql` |
+| sea-orm-cli | `migration/` 目录 | `sea_orm_migration` / `MigrationTrait` |
+
+### HTTP Client / 服务间调用
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| reqwest | Cargo.toml / Rust 源码 | `reqwest` / `Client::new()` / `.get()` / `.json()` |
+| surf | Cargo.toml / Rust 源码 | `surf` / `surf::get` / `surf::post` |
+| tonic (gRPC 客户端) | Cargo.toml / Rust 源码 | `tonic` / `tonic::transport::Channel` / proto stub |
+| prost (protobuf) | Cargo.toml / proto 文件 | `prost` / `.proto` 文件 / `prost-build` |
+| hyper (底层) | Cargo.toml / Rust 源码 | `hyper` / `hyper::Client` / `hyper::Request` |
+
+### 定时任务 / 后台作业
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| tokio-cron-scheduler | Cargo.toml / Rust 源码 | `tokio-cron-scheduler` / `Job::new_async` / `JobScheduler` |
+| clokwerk | Cargo.toml / Rust 源码 | `clokwerk` / `Scheduler::new` / `.every` |
+| apalis | Cargo.toml / Rust 源码 | `apalis` / `apalis::prelude` / 后台作业框架 |
+| tokio::spawn 循环 | Rust 源码 | `tokio::spawn` + `tokio::time::interval` 循环模式 |
+
+### 对象存储 / 文件
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| AWS S3 | Cargo.toml / Rust 源码 | `aws-sdk-s3` / `rust-s3` / `S3Client` |
+| MinIO | Cargo.toml / Rust 源码 | `rust-s3` / `minio` / `Bucket` |
+| 阿里云 OSS | Cargo.toml / Rust 源码 | `ali-oss` / `oss-rsdk` |
+
+### 配置管理（集中式）
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| config crate | Cargo.toml / Rust 源码 | `config` / `Config::builder` / `.set_default` |
+| dotenv | Cargo.toml / Rust 源码 | `dotenv` / `dotenvy` / `.env` 文件 |
+| envy | Cargo.toml / Rust 源码 | `envy` / `from_env` |
+| clap | Cargo.toml / Rust 源码 | `clap` / `#[derive(Parser)]` / CLI 参数配置 |
+
+### 限流 / 熔断 / 弹性
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| tower retry / limit | Cargo.toml / Rust 源码 | `tower::limit::RateLimit` / `tower::retry::Policy` / `ServiceBuilder` |
+| failsafe | Cargo.toml / Rust 源码 | `failsafe` / `CircuitBreaker` |
+
+### WebSocket / SSE
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| tokio-tungstenite | Cargo.toml / Rust 源码 | `tokio-tungstenite` / `accept_async` / `Message` |
+| axum WebSocket | Rust 源码 | `axum::extract::ws` / `WebSocketUpgrade` / `ws.on_upgrade` |
+| SSE | Rust 源码 | `axum::response::sse` / `Sse` / `text/event-stream` |
+
+### 模板引擎
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| Tera | Cargo.toml / Rust 源码 | `tera` / `Tera::new` / Jinja2 风格 |
+| Askama | Cargo.toml / Rust 源码 | `askama` / `#[derive(Template)]` / 编译时模板 |
+| Handlebars | Cargo.toml / Rust 源码 | `handlebars` / `Handlebars::new` |
+| minijinja | Cargo.toml / Rust 源码 | `minijinja` / `Environment::new` |
+
+### 测试基础设施
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| Testcontainers | Cargo.toml / test 源码 | `testcontainers` / `DockerRunner` / `images::generic` |
+| wiremock-rs | Cargo.toml / test 源码 | `wiremock` / `MockServer::start` / `Mock::given` |
+| mockall | Cargo.toml / test 源码 | `mockall` / `#[automock]` / `mock!` |
+| tokio::test | Rust 源码 | `#[tokio::test]` / 异步测试 |
+| proptest | Cargo.toml / test 源码 | `proptest` / 属性测试 |
+| criterion | Cargo.toml / bench 源码 | `criterion` / `BenchmarkGroup` / 性能基准测试 |
+
+### 日志/可观测性
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| tracing 配置 | Rust 源码 / main | `tracing_subscriber::init()` / `setup_tracing` / `init_subscriber` |
+| tracing spans | Rust 源码 | `#[instrument]` / `tracing::info!` / `tracing::span!` |
+| OpenTelemetry | Cargo.toml / Rust 源码 | `opentelemetry` / `tracing-opentelemetry` / `opentelemetry-otlp` |
+
+### 消息队列
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| lapin (RabbitMQ) | Cargo.toml / Rust 源码 | `lapin` / `Channel.basic_consume` / `BasicProperties` |
+| rdkafka | Cargo.toml / Rust 源码 | `rdkafka` / `BaseConsumer` / `FutureProducer` |
+| NATS | Cargo.toml / Rust 源码 | `async-nats` / `ConnectOptions` / `Subscriber` |
+
+### 缓存
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| Redis | Cargo.toml / Rust 源码 | `redis` / `deadpool-redis` / `redis::Connection` |
+| moka | Cargo.toml / Rust 源码 | `moka::sync::Cache` / `moka::future::Cache` |
+
+### 框架/工具
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| Tower middleware 层 | Rust 源码 | `.layer(` / `ServiceBuilder` / `tower::ServiceBuilder` |
+| Axum State | Rust 源码 | `Router::with_state(` / `State<AppState>` |
+| Actix State | Rust 源码 | `web::Data<` / `App::app_data(` |
+| Feature flags | Cargo.toml | `[features]` 段 / `#[cfg(feature =` |
 
 ## Rust 特有约束（候选规则池）
 
@@ -101,8 +253,19 @@
 | State | `State<AppState>` 共享状态，通过 `Router::with_state()` 注入 |
 | Extractor | `Json<T>`, `Path<T>`, `Query<T>` 请求解析 |
 | 错误处理 | 自定义 `IntoResponse` 实现统一错误响应 |
-| 中间件 | Tower middleware，`layer()` 挂载 |
+| 中间件 | Tower middleware `.layer()` 挂载，层叠顺序有语义（从外到内执行） |
 | 路由 | `Router::new().route("/path", post(handler))` |
+| 事务 | Service 层管理事务边界，Handler 禁止持有 `Transaction` 对象 |
+| 认证 | auth 作为 Tower layer 或自定义 `FromRequestParts` extractor，新接口默认受保护 |
+| CORS | `tower-http::cors::CorsLayer` 集中配置，禁止 Handler 手动写 CORS header |
+| 日志 | 检测到 tracing 时：`#[instrument]` 标注 Service 方法，`tracing::info!` 记录关键操作 |
+| 迁移 | 检测到 sqlx-cli/diesel-cli 时：新增表/字段走迁移脚本，禁止手动 DDL |
+| HTTP Client | 封装在独立的 `client` 模块，Handler 禁止直接发起 HTTP 调用 |
+| 定时任务 | 检测到 tokio-cron-scheduler 时：任务定义在 `jobs/` 模块，通过 `on_startup` 注册 |
+| 对象存储 | 文件操作通过统一的 StorageService 封装，禁止 Handler 直接使用 S3 Client |
+| 配置 | 检测到 config crate 时：配置结构体用 `Deserialize`，新配置项同步更新 struct |
+| WebSocket | `WebSocketUpgrade` handler 仅做连接升级，消息处理在 Service 层 |
+| SSE | `Sse(stream)` 用于实时推送，stream 在 Service 层生成 |
 
 ### Actix-web
 
@@ -114,6 +277,10 @@
 | 错误处理 | 自定义 `ResponseError` trait 实现 |
 | 中间件 | `actix_web::middleware` + 自定义 `Transform` |
 | 路由 | `App::new().service(web::resource("/path").route(post(handler)))` |
+| 认证 | auth middleware 通过 `app.wrap()` 挂载，或自定义 `FromRequest` extractor |
+| HTTP Client | 封装在独立模块，Handler 禁止直接发起 HTTP 调用 |
+| 定时任务 | 通过 `actix_rt::spawn` + `tokio::time::interval` 在 `HttpServer::workers` 中注册 |
+| WebSocket | `actix-ws` / `HttpRequest::upgrade()` handler 仅做连接升级 |
 
 ### Tokio
 

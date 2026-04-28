@@ -24,6 +24,16 @@
 | 测试覆盖率 | `pytest tests/ --cov=src --cov-report=term-missing` |
 | 全部门禁 | `pre-commit run --all-files` |
 
+### 多包项目检测
+
+| 信号 | 含义 | 检测方式 |
+|------|------|---------|
+| `pyproject.toml` 含 `[tool.poetry.group]` 或多个 `[project]` | Poetry 多环境/多包 | 读取 pyproject.toml |
+| `pyproject.toml` 含 `[tool.pdm.scripts]` + 多个 `__pypackages__` | PDM 多包 | 读取 pyproject.toml |
+| `src/` 下多个子目录各有 `__init__.py` | namespace packages / src layout 多包 | `find src/ -maxdepth 2 -name '__init__.py'` |
+| 根目录 `requirements.txt` + 子目录各有 `requirements.txt` | pip 多环境拆分 | 检查子目录 |
+| `pyproject.toml` 含 `[tool.hatch.envs]` 多环境 | Hatch 多环境 | 读取 pyproject.toml |
+
 ## 工具链覆盖清单
 
 以下规则已被工具链强制执行，通常不需要写入 CLAUDE.md：
@@ -58,6 +68,165 @@
 - 路径/ID 校验（仅涉及文件/用户输入操作）
 - API 枚举约束（仅 API 接口层）
 - 维护同步义务（仅项目有质量门禁时）
+
+## 检测信号
+
+### 数据库
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| PostgreSQL | pyproject.toml / requirements.txt | `psycopg2` / `psycopg2-binary` / `asyncpg` / SQLAlchemy `postgresql://` |
+| MySQL | pyproject.toml / requirements.txt | `mysqlclient` / `pymysql` / `aiomysql` / SQLAlchemy `mysql://` |
+| SQLite | Python 标准库 / SQLAlchemy | `sqlite3` / SQLAlchemy `sqlite://` |
+| MongoDB | pyproject.toml / requirements.txt | `pymongo` / `motor` / `odmantic` |
+| Redis | pyproject.toml / requirements.txt | `redis` / `aioredis` / `redis-py` |
+| Elasticsearch | pyproject.toml / requirements.txt | `elasticsearch` / `opensearch-py` |
+| 多数据库 | settings.py / Python 源码 | Django `DATABASES` 多键 / SQLAlchemy 多 engine / 读写分离配置 |
+| ORM 框架 | pyproject.toml / Python 源码 | `sqlalchemy` / `tortoise-orm` / `django` ORM / `peewee` / `pony` |
+
+### 事务 / 数据库配置
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| Django 事务 | settings.py | `ATOMIC_REQUESTS` / `TransactionMiddleware` / `DATABASES['default']['ATOMIC_REQUESTS']` |
+| Django 中间件 | settings.py | `MIDDLEWARE` 列表中的自定义中间件顺序 |
+| Django 数据库路由 | settings.py | `DATABASE_ROUTERS` |
+| SQLAlchemy session | Python 源码 | `scoped_session` / `sessionmaker` / `async_sessionmaker` / `SessionLocal` |
+
+### 认证/鉴权
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| Django auth | settings.py / Python 源码 | `AUTHENTICATION_BACKENDS` / custom `Backend` 类 |
+| Django REST Framework | settings.py | `REST_FRAMEWORK['DEFAULT_PERMISSION_CLASSES']` / `DEFAULT_AUTHENTICATION_CLASSES` |
+| FastAPI auth | Python 源码 | `Depends(oauth2_scheme)` / `get_current_user` / `HTTPBearer` / 自定义 auth dependency |
+| Flask-Login | Python 源码 | `LoginManager` / `@login_required` / `current_user` |
+| Flask-JWT | Python 源码 | `JWTManager` / `create_access_token` / `jwt_required` |
+
+### 数据库迁移
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| Alembic | `alembic.ini` / `alembic/` 目录 | `alembic revision` / `versions/` 目录 |
+| Django migrations | `migrations/` 目录 | `makemigrations` / `migrate` 命令 |
+| Aerich (Tortoise ORM) | `migrations/` 目录 | `aerich.ini` / `aerich migrate` |
+
+### HTTP Client / 服务间调用
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| requests | pyproject.toml / Python 源码 | `requests.get` / `requests.post` / `Session()` |
+| httpx | pyproject.toml / Python 源码 | `httpx.AsyncClient` / `httpx.get` / `httpx.post` |
+| aiohttp | pyproject.toml / Python 源码 | `aiohttp.ClientSession` / `aiohttp.get` |
+| gRPC 客户端 | pyproject.toml / Python 源码 | `grpcio` / `grpc.insecure_channel` / stub 导入 |
+| tenacity (重试) | pyproject.toml / Python 源码 | `@retry` / `retry(stop=...)` / `tenacity` |
+
+### 定时任务 / 后台作业
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| Celery Beat | Python 源码 / settings | `CELERY_BEAT_SCHEDULE` / `crontab(` / `solar(` |
+| APScheduler | pyproject.toml / Python 源码 | `apscheduler` / `BackgroundScheduler` / `@scheduler.scheduled_job` |
+| Huey | pyproject.toml / Python 源码 | `huey` / `@huey.periodic_task` / `@db_task` |
+| asyncio scheduling | Python 源码 | `asyncio.create_task` / `loop.call_later` |
+
+### 对象存储 / 文件
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| boto3 (AWS S3) | pyproject.toml / Python 源码 | `boto3.client('s3')` / `boto3.resource('s3')` |
+| MinIO | pyproject.toml / Python 源码 | `minio` / `Minio` / `presigned_get_object` |
+| 阿里云 OSS | pyproject.toml / Python 源码 | `oss2` / `oss2.Auth` / `Bucket` |
+
+### 配置中心（集中式）
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| python-decouple | pyproject.toml / Python 源码 | `decouple.config` / `.env` 文件 |
+| dynaconf | pyproject.toml / Python 源码 | `dynaconf` / `settings.toml` / `Dynaconf` |
+| Consul KV | pyproject.toml / Python 源码 | `consulate` / `python-consul` / `consul.kv.get` |
+| etcd | pyproject.toml / Python 源码 | `etcd3` / `etcd.Client` |
+
+### 限流 / 熔断 / 弹性
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| circuitbreaker | pyproject.toml / Python 源码 | `@circuit` / `CircuitBreaker` |
+| ratelimit | pyproject.toml / Python 源码 | `@sleep_and_retry` / `@limits` |
+| slowapi | pyproject.toml / Python 源码 | `limiter.limit` / `Limiter` / FastAPI 集成 |
+
+### WebSocket / SSE
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| FastAPI WebSocket | Python 源码 | `@app.websocket` / `WebSocket` / `websocket.accept` |
+| Django Channels | pyproject.toml / Python 源码 | `channels` / `AsyncWebsocketConsumer` / `routing.py` |
+| SSE | Python 源码 | `StreamingResponse` / `text/event-stream` / `sse-starlette` |
+
+### 模板引擎
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| Jinja2 | pyproject.toml / Python 源码 / templates 目录 | `jinja2` / `templates/` 目录 / `render_template` |
+| Django templates | templates 目录 | `templates/` 目录 / `{% block %}` / `{% extends %}` |
+| Mako | pyproject.toml / Python 源码 | `mako` / `.mako` 文件 |
+
+### 测试基础设施
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| Testcontainers | pyproject.toml / test 源码 | `testcontainers` / `DockerContainer` / `postgres container` |
+| responses / vcr | pyproject.toml / test 源码 | `responses` / `@responses.activate` / `vcrpy` / `@vcr.use_cassette` |
+| freezegun | pyproject.toml / test 源码 | `freezegun` / `@freeze_time` |
+| factory_boy | pyproject.toml / test 源码 | `factory` / `Factory` / `SubFactory` |
+
+### 日志/可观测性
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| structlog | pyproject.toml / Python 源码 | `structlog.configure` / `structlog.get_logger` |
+| Sentry | pyproject.toml / Python 源码 | `sentry-sdk` / `sentry_sdk.init` |
+| logging 配置 | settings.py / logging.conf | `LOGGING` dict / `dictConfig` |
+
+### 消息队列
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| Celery | Python 源码 / settings | `@app.task` / `CELERY_TASK_ROUTES` / `CELERY_BROKER_URL` |
+| Redis Streams | Python 源码 | `xread` / `xadd` / `aioredis` |
+| Kafka (aiokafka) | Python 源码 | `AIOKafkaConsumer` / `AIOKafkaProducer` |
+
+### 缓存
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| Django cache | settings.py | `CACHES` dict / `cache_page` / `@cache_page` |
+| Redis cache | Python 源码 | `redis.Redis` / `aioredis` / `@cached` (cachetools) |
+| FastAPI cache | Python 源码 | `fastapi-cache2` / `@cache()` decorator |
+
+### API 文档
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| FastAPI auto-docs | Python 源码 | `FastAPI(title=` / `description=` / `tags_metadata` |
+| DRF Spectacular | settings.py | `SPECTACULAR_SETTINGS` / `@extend_schema` |
+| DRF Swagger/YASG | settings.py | `SWAGGER_SETTINGS` / `@swagger_auto_schema`（已过时） |
+
+### CORS
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| FastAPI CORS | Python 源码 | `CORSMiddleware` / `app.add_middleware(CORSMiddleware)` |
+| Django CORS | settings.py / pyproject.toml | `django-cors-headers` / `CORS_ALLOW_ALL_ORIGINS` / `CORS_ALLOWED_ORIGINS` |
+| Flask CORS | Python 源码 | `flask-cors` / `CORS(app)` |
+
+### Web 框架配置
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| FastAPI 中间件 | Python 源码 | `app.add_middleware()` / `@app.middleware("http")` |
+| FastAPI 生命周期 | Python 源码 | `@app.on_event("startup")` / `lifespan` |
+| Pytest 配置 | pyproject.toml / pytest.ini | `[tool.pytest.ini_options]` / `conftest.py` 层级 |
 
 ## Python 特有约束（候选规则池）
 
@@ -111,6 +280,15 @@
 | 异步架构 | 可全同步（threading 后台任务）或全异步，必须明确 |
 | 配置管理 | `pydantic-settings` + `BaseSettings`，环境变量前缀 |
 | 请求模型 | Pydantic `BaseModel` + `Field()` 校验，枚举用 `Literal[...]` |
+| 认证 | `Depends(get_current_user)` 统一鉴权，新接口默认需要认证 |
+| CORS | 集中在 `app.add_middleware(CORSMiddleware)` 配置，禁止路由级 CORS |
+| 消息队列 | Celery task 仅做反序列化+调用 Service，禁止在 task 中写业务逻辑 |
+| 缓存 | 检测到 fastapi-cache2 时：`@cache()` 放在 Service 层，key 包含业务标识 |
+| HTTP Client | 检测到 httpx 时：异步调用用 `httpx.AsyncClient`，统一超时和重试配置 |
+| 定时任务 | 检测到 APScheduler 时：任务定义集中在 `tasks/` 或 `jobs/` 目录 |
+| 对象存储 | 文件操作通过统一的 StorageService 封装，禁止直接使用 boto3/MinIO Client |
+| WebSocket | `@app.websocket` handler 仅做连接管理，消息处理逻辑放在 Service 层 |
+| SSE | `StreamingResponse(generator, media_type="text/event-stream")` 用于实时推送 |
 
 ### Django
 
@@ -120,6 +298,17 @@
 | ORM | 仅 Service 层操作 Model，View 层通过 Service 中转 |
 | URL 路由 | `urls.py` 集中注册，app 级别 include |
 | 配置 | `settings.py` + `.env`（django-environ） |
+| 事务 | `ATOMIC_REQUESTS=True` 时 View 自动事务包裹；否则 Service 层用 `@transaction.atomic` |
+| 中间件 | `MIDDLEWARE` 列表顺序有语义（请求从上到下，响应从下到上），变更时需记录顺序依赖 |
+| 认证 | `AUTHENTICATION_BACKENDS` 集中配置，新 View 用 `@permission_required` 或 DRF `permission_classes` |
+| 迁移 | 检测到 `migrations/` 时禁止手动改库结构，走 `makemigrations` + `migrate` |
+| 缓存 | `CACHES` 集中配置，`@cache_page` 仅放在 View 层 |
+| API 文档 | 检测到 DRF Spectacular 时：新接口必须加 `@extend_schema` |
+| CORS | `django-cors-headers` 集中配置，`CORS_ALLOWED_ORIGINS` 白名单 |
+| HTTP Client | 检测到 httpx/requests 时：调用封装在 Service 层，View 禁止直接发起 HTTP 请求 |
+| 定时任务 | 检测到 Celery Beat 时：定时任务定义在 `tasks.py`，用 `CELERY_BEAT_SCHEDULE` 注册 |
+| 对象存储 | 文件操作通过统一的 StorageService 封装，禁止直接使用 boto3 |
+| WebSocket | 检测到 Channels 时：Consumer 仅做连接管理，消息处理在 Service 层 |
 | 测试 | `pytest-django` + fixtures |
 
 ### Flask
@@ -129,6 +318,11 @@
 | 蓝图 | 按功能模块拆分 Blueprint |
 | 工厂模式 | `create_app()` 工厂函数 |
 | 配置 | `app.config.from_object()` + 环境变量 |
+| 扩展初始化 | 扩展在 `create_app()` 中初始化并绑定 app，禁止模块级初始化 |
+| 认证 | 检测到 Flask-Login 时：`@login_required` 保护路由；检测到 JWT 时：`@jwt_required()` |
+| CORS | `flask-cors` 在 `create_app()` 中初始化，禁止路由级 CORS |
+| HTTP Client | 调用封装在 Service 层，Blueprint 禁止直接发起 HTTP 请求 |
+| 定时任务 | 检测到 APScheduler 时：任务定义集中在独立模块，通过 `create_app()` 注册 |
 | 测试 | pytest + Flask test client |
 
 ## 测试约定

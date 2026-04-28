@@ -19,6 +19,14 @@
 | 静态分析 | `go vet ./...` |
 | 安全检查 | `gosec ./...` |
 
+### 多模块项目检测
+
+| 信号 | 含义 | 检测方式 |
+|------|------|---------|
+| `go.work` 文件 | Go workspace（多模块） | 读取 go.work 中 `use` 指令 |
+| 多个 `go.mod` 文件 | 多模块仓库 | `find . -name 'go.mod' \| grep -v vendor` |
+| `go.work.sum` | workspace 依赖校验 | 确认 go.work 存在 |
+
 ## 工具链覆盖清单
 
 | 工具 | 覆盖的规则 |
@@ -50,6 +58,173 @@
 - sync vs channel 选择策略
 - table-driven tests 模式
 - 竞态检测 -race
+
+## 检测信号
+
+### 数据库
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| PostgreSQL | go.mod / Go 源码 | `pgx` / `lib/pq` / `jackc/pgx` / `sql.Open("pgx` / `postgres://` |
+| MySQL | go.mod / Go 源码 | `go-sql-driver/mysql` / `sql.Open("mysql` / `mysql://` |
+| SQLite | go.mod / Go 源码 | `mattn/go-sqlite3` / `modernc.org/sqlite` / `sql.Open("sqlite` |
+| MongoDB | go.mod / Go 源码 | `mongo-driver` / `mongo.Connect` / `bson.M` |
+| CockroachDB | go.mod / Go 源码 | `cockroach-go` / `cockroachdb://` |
+| Redis | go.mod / Go 源码 | `go-redis` / `redis.NewClient` / `redis.UniversalClient` |
+| Elasticsearch | go.mod / Go 源码 | `olivere/elastic` / `go-elasticsearch` |
+| 多数据库 | Go 源码 | 多个 `*sql.DB` 实例 / 读写分离 / `db.Get(readDB)` vs `db.Get(writeDB)` |
+| 连接池 | Go 源码 | `db.SetMaxOpenConns` / `db.SetMaxIdleConns` / `db.SetConnMaxLifetime` |
+| ORM 框架 | go.mod / Go 源码 | `gorm.io/gorm` / `entgo.io/ent` / `upper/db` / `xo` |
+| 查询构建器 | go.mod / Go 源码 | `squirrel` / `goqu` / `bob` |
+
+### 事务/数据库配置
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| sqlx 事务 | Go 源码 | `db.BeginTx` / `tx.Commit` / `tx.Rollback` / `sqlx` |
+| GORM 事务 | Go 源码 | `db.Transaction(` / `db.Begin()` / `Session(&gorm.Session{})` |
+| ent 事务 | Go 源码 | `client.Tx()` / `WithTx(` / `ent` |
+
+### 认证/鉴权
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| JWT middleware | Go 源码 | `jwt.Parse` / `jwtmiddleware` / `jwt-go` /自定义 auth middleware |
+| Gin auth middleware | Go 源码 | `router.Use(authMiddleware)` / `c.Set("user"` |
+| Echo auth middleware | Go 源码 | `e.Use(middleware.JWT(`) /自定义 `echo.MiddlewareFunc` |
+| gRPC auth | Go 源码 | `grpc.Authenticator` / credentials / `grpc.PerRPCCredentials` |
+
+### 数据库迁移
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| golang-migrate | `migrations/` 目录 / Go 源码 | `migrate.New` / `.up.sql` / `.down.sql` |
+| goose | `migrations/` 目录 / Go 源码 | `goose.Up` / `goose.Create` / `.sql` 文件 |
+| GORM AutoMigrate | Go 源码 | `db.AutoMigrate(` |
+| atlas | `atlas.hcl` / 目录 | `atlas` / `schema.Apply` |
+
+### HTTP Client / 服务间调用
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| net/http (标准库) | Go 源码 | `http.Get` / `http.Post` / `http.Client{Timeout:}` |
+| resty | go.mod / Go 源码 | `go-resty` / `resty.New` / `r.SetTimeout` |
+| req | go.mod / Go 源码 | `imroc/req` / `req.New` / 自定义 client |
+| fasthttp | go.mod / Go 源码 | `fasthttp` / `fasthttp.Client` / `fasthttp.Request` |
+| gRPC 客户端 | go.mod / Go 源码 | `grpc.Dial` / `grpc.WithInsecure` / proto stub |
+| protobuf | go.mod / proto 文件 | `google.golang.org/protobuf` / `.proto` 文件 |
+
+### 定时任务 / 后台作业
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| robfig/cron | go.mod / Go 源码 | `robfig/cron` / `c.AddFunc` / `c.Start` |
+| asynq | go.mod / Go 源码 | `hibiken/asynq` / `asynq.NewClient` / `asynq.NewScheduler` |
+| gocron | go.mod / Go 源码 | `gocron` / `s.Every` / `s.Do` |
+| time.Ticker / time.AfterFunc | Go 源码 | `time.NewTicker` / `time.AfterFunc` |
+
+### 对象存储 / 文件
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| AWS S3 | go.mod / Go 源码 | `aws-sdk-go` / `aws-sdk-go-v2` / `s3manager.NewUploader` |
+| MinIO | go.mod / Go 源码 | `minio-go` / `minio.New` / `PutObject` |
+| 阿里云 OSS | go.mod / Go 源码 | `aliyun-oss-go-sdk` / `oss.New` / `bucket.PutObject` |
+
+### 配置中心（集中式）
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| Viper | go.mod / Go 源码 | `viper` / `viper.SetConfigName` / `viper.WatchConfig` |
+| Consul | go.mod / Go 源码 | `hashicorp/consul/api` / `consul.KV()` |
+| etcd | go.mod / Go 源码 | `go.etcd.io/etcd/client` / `clientv3` |
+| Nacos | go.mod / Go 源码 | `nacos-sdk-go` / `config.GetConfig` |
+
+### 限流 / 熔断 / 弹性
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| tollbooth | go.mod / Go 源码 | `tollbooth` / `tollbooth.LimitHandler` |
+| circuitbreaker | go.mod / Go 源码 | `circuitbreaker` / `cb.Execute` / `sony/gobreaker` |
+| resilience4go | go.mod / Go 源码 | `resiliencego` / `circuitbreaker` / `ratelimiter` |
+| retry | go.mod / Go 源码 | `avast/retry-go` / `retry.Do` / `sette/retry` |
+
+### WebSocket / SSE
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| gorilla/websocket | go.mod / Go 源码 | `gorilla/websocket` / `Upgrader` / `conn.ReadMessage` |
+| nhooyr.io/websocket | go.mod / Go 源码 | `nhooyr.io/websocket` / `websocket.Accept` |
+| SSE | Go 源码 | `Flusher` / `text/event-stream` / `fmt.Fprintf(w, "data: ` |
+
+### 模板引擎
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| html/template | Go 标准库 | `template.ParseFiles` / `tmpl.Execute` / `template.HTML` |
+| text/template | Go 标准库 | `text/template` / `template.New` |
+| Pongo2 | go.mod / Go 源码 | `flosch/pongo2` / Django 风格模板 |
+
+### 测试基础设施
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| Testcontainers | go.mod / test 源码 | `testcontainers-go` / `testcontainers.GenericContainer` |
+| gomock | go.mod / test 源码 | `gomock` / `gomock.Controller` / `mockgen` |
+| testify | go.mod / test 源码 | `testify` / `assert.Equal` / `suite.Suite` |
+| gock | go.mod / test 源码 | `h2non/gock` / HTTP mock / `gock.New` |
+| httptest | Go 标准库 | `httptest.NewServer` / `httptest.NewRecorder` |
+
+### 日志/可观测性
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| zap | go.mod / Go 源码 | `zap.NewProduction` / `zap.L()` / `zap.S()` |
+| slog | Go 源码 | `slog.Info` / `slog.With` / `slog.SetDefault` |
+| logrus | go.mod / Go 源码 | `logrus.New` / `logrus.WithFields` |
+| OpenTelemetry | go.mod / Go 源码 | `otel` / `otelhttp` / `otelsql` / `trace.SpanFromContext` |
+
+### 消息队列
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| NATS | go.mod / Go 源码 | `nats.Connect` / `nc.Subscribe` / `nc.Publish` |
+| RabbitMQ | go.mod / Go 源码 | `amqp.Dial` / `channel.Consume` / `amqp091-go` |
+| Kafka (confluent/sarama) | go.mod / Go 源码 | `kafka.Consumer` / `kafka.Producer` / `sarama.NewConsumer` |
+| Redis Streams | go.mod / Go 源码 | `XRead` / `XAdd` / `go-redis` |
+
+### 缓存
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| Redis | go.mod / Go 源码 | `go-redis` / `redis.NewClient` / `redis.UniversalClient` |
+| go-cache / bigcache | go.mod / Go 源码 | `cache.New` / `bigcache.NewBigCache` |
+| Caffeine-style (ristretto) | go.mod / Go 源码 | `ristretto.NewCache` |
+
+### 验证
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| validator/v10 | go.mod / Go 源码 | `validate.Var` / `validate.Struct` / `binding:` tag |
+| Gin binding | Go 源码 | `ShouldBindJSON` / `binding:` tag |
+
+### CORS
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| Gin CORS | Go 源码 | `cors.Default()` / `cors.Config{}` middleware |
+| Echo CORS | Go 源码 | `e.Use(middleware.CORSWithConfig` |
+| 手动 CORS | Go 源码 | `w.Header().Set("Access-Control-` |
+
+### 框架/DI
+
+| 技术栈 | 检测文件/模式 | 检测关键字 |
+|--------|-------------|-----------|
+| Gin 中间件链 | Go 源码 | `router.Use(` / `group.Use(` / 自定义 `gin.HandlerFunc` |
+| Echo 中间件 | Go 源码 | `e.Use(` / `e.Pre(` / 自定义 `echo.MiddlewareFunc` |
+| gRPC 拦截器 | Go 源码 | `grpc.UnaryInterceptor` / `grpc.StreamInterceptor` / `grpc.ChainUnaryInterceptor` |
+| gRPC 服务注册 | Go 源码 / proto 文件 | `pb.Register*Server` / `.proto` 文件 |
+| Wire DI | Go 源码 | `wire.Build` / `wire.NewSet` / `wire.go` |
 
 ## Go 特有约束（候选规则池）
 
@@ -115,6 +290,17 @@
 | 中间件 | `gin.HandlerFunc`，错误通过 `c.Error()` 传递 |
 | 绑定 | `ShouldBindJSON` / `ShouldBindQuery`，禁止手动解析 |
 | 响应 | `c.JSON(code, data)`，统一响应结构 |
+| 事务 | Service 层管理事务边界，Handler 禁止持有 `*gorm.DB` 或 `*sqlx.DB` 事务对象 |
+| 认证 | auth middleware 挂载在 router/group 上，新接口默认受保护 |
+| CORS | `cors.Config{}` 集中配置，禁止 Handler 手动写 CORS header |
+| 日志 | 检测到 zap/slog 时：结构化日志用 `zap.L().Info("msg", zap.String(...))`，禁止 `log.Printf` |
+| 迁移 | 检测到 golang-migrate/goose 时：新增表/字段走迁移脚本，禁止手动 DDL |
+| HTTP Client | 封装在 `internal/client/` 或 `pkg/httpclient/`，禁止 Handler 直接发起 HTTP 调用 |
+| 定时任务 | 检测到 robfig/cron 时：任务定义在 `internal/job/` 或 `cmd/` 启动注册 |
+| 对象存储 | 文件操作通过统一的 StorageService 封装，禁止 Handler 直接使用 S3/OSS Client |
+| 配置 | 检测到 Viper 时：配置结构体用 `mapstructure` tag，新配置项同步更新 struct |
+| 熔断限流 | 检测到 circuitbreaker 时：外部调用必须包裹在熔断器中 |
+| WebSocket | 检测到 gorilla/websocket 时：Upgrader 配置集中管理，Hub 模式管理连接 |
 
 ### Echo
 
@@ -123,6 +309,12 @@
 | 路由 | `e.Group()` 分组，`e.Use()` 中间件 |
 | 绑定 | `echo.Bind()` 自动绑定 |
 | 错误处理 | 自定义 `HTTPErrorHandler` 统一处理 |
+| 中间件 | `e.Use()` 全局中间件，`e.Pre()` 在路由前执行（如 trailing slash） |
+| 认证 | auth middleware 通过 `e.Use()` 或 group 挂载，新接口默认受保护 |
+| CORS | `middleware.CORSWithConfig` 集中配置 |
+| HTTP Client | 同 Gin 规则，封装在独立包中 |
+| 定时任务 | 检测到 robfig/cron 时：通过 `e.OnStartup` 注册或独立 goroutine |
+| 配置 | 检测到 Viper 时：配置结构体用 `mapstructure` tag |
 
 ### Fiber
 
