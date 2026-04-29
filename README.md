@@ -21,7 +21,7 @@ skills/<skill-name>/
 - 方法论文档供 `SKILL.md` 交叉引用，不独立使用
 
 ## 快速开始
-```json
+```bash
 # 克隆仓库
 git clone https://github.com/eefnrowe/crafts-hub.git
 
