@@ -25,13 +25,11 @@ skills/<skill-name>/
 # 克隆仓库
 git clone https://github.com/eefnrowe/crafts-hub.git
 
+# 装配 skills 到全局
+cp -r crafts-hub/skills ~/.claude/skills
+
 # 复制 skills 到你的项目
-cp -r crafts-hub/skills /your/project/.claude/skills      # Claude Code / Copilot CLI
-cp -r crafts-hub/skills /your/project/.cursor/skills      # Cursor
-cp -r crafts-hub/skills /your/project/.codex/skills       # Codex CLI
-cp -r crafts-hub/skills /your/project/.kiro/steering      # Kiro
-cp -r crafts-hub/skills /your/project/skills/custom       # DeerFlow 2.0
-cp -r crafts-hub/skills /your/project/.opencode/skills    # OpenCode
+cp -r crafts-hub/skills /your/project/.claude/skills
 ```
 
 ## 方法论基础
