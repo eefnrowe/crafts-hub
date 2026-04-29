@@ -30,6 +30,15 @@ cp -r crafts-hub/skills ~/.claude/skills
 
 # 复制 skills 到你的项目
 cp -r crafts-hub/skills /your/project/.claude/skills
+
+
+# 使用方式
+cd /your/project
+
+claude
+
+/writing-claude-md
+
 ```
 
 ## 方法论基础
