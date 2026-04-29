@@ -286,7 +286,7 @@ C3: "有哪些项目特有的、不显而易见的规则？
   | 分层架构 | 目录结构（domain/application → DDD，controllers/models → MVC，cmd/+internal/ → 简单分层，无分层目录 → 无架构） | 写入对应分层约束规则 |
   | DI 方式 | 确认框架（Spring → 自动，dishka → 自动，wire/dig → 自动，工厂类 → 手动，无框架 → 无DI） | 写入对应 DI 注入规则 |
   | 异常处理 | 源码模式（@ControllerAdvice → 全局拦截，ErrorBoundary → 全局拦截，各层独立 try-catch → 各层独立，无统一处理 → 简单try-catch） | 写入对应异常处理规则 |
-  | 同步/异步 | 确认框架（FastAPI/Node/Actix → 天然异步，goroutine → 异步，其余 → 检查源码 async def / async fn） | 天然异步框架 + 全同步代码 → 写入 async 规则（标注反直觉）；全异步 → 不写入（非反直觉） |
+  | 同步/异步 | 确认框架（FastAPI/Node/Actix/Ktor → 天然异步，goroutine → 异步，其余 → 检查源码 async def / async fn / suspend fun） | 天然异步框架 + 全同步代码 → 写入 async 规则（标注反直觉）；全异步 → 不写入（非反直觉） |
 
   → 基于阶段 B 用户采纳的推荐项，写入对应加强规范
   → 无 Q&A 映射的 Tier 2 规则（通用池）：已生成内容 < 120 行时纳入，放在中间区域
