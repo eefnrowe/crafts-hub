@@ -554,7 +554,7 @@ cargo test + proptest
 
 ## 场景 K：Java Spring Boot 多模块 + 拦截器事务 + 丰富技术栈
 
-**目的：** 覆盖多模块 Maven 检测、4 类检测信号全覆盖（依赖声明/配置文件/源码模式/目录信号）、TransactionInterceptor 检测、Step 2 Tier 1 冗余和丢弃分支。
+**目的：** 覆盖多模块 Maven 检测、4 类检测信号全覆盖（依赖声明/配置文件/源码模式/目录信号）、TransactionInterceptor 检测、Step 2 Tier 1 已覆盖和丢弃分支。
 
 **输入项目：**
 ```
@@ -633,7 +633,7 @@ Tier 2：
 **通过判定：**
 - [ ] 多模块检测：识别根 POM 为 parent，app 子模块为 Spring Boot 应用
 - [ ] 技术栈扫描覆盖 4 类信号：依赖声明（seata）、配置文件（MySQL URL）、源码（TransactionInterceptor）、目录（db/migration/）
-- [ ] Step 2 Tier 1 冗余分支：架构概览标记为冗余，引用 README.md
+- [ ] Step 2 Tier 1 已覆盖分支：架构概览标记为已覆盖，提纯写入
 - [ ] Step 2 Tier 1 丢弃分支：import 排序标记为丢弃（checkstyle 覆盖）
 - [ ] 架构模式自动推断为 MVC + 自动 DI + 全局异常拦截
 - [ ] 包含拦截器式事务规则（TransactionInterceptor + 命名约定）
