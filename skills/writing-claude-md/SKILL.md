@@ -155,7 +155,7 @@ Q1: "检测到项目语言为 [语言]，确认吗？"
 
 **AskUserQuestion（1-2 次调用，每次 ≤4 个问题）：**
 
-按技术栈数量和类别数决定调用次数。类别固定为以下 4 个（空类别不展示）：
+按技术栈数量和类别数决定调用次数。基础类别固定为以下 4 个（空类别不展示）：
 
 | 类别 | 包含内容 | 判定来源 |
 |------|---------|---------|
@@ -164,15 +164,26 @@ Q1: "检测到项目语言为 [语言]，确认吗？"
 | 基础设施与中间件 | 服务注册、配置中心、消息队列、分布式事务（如 Nacos / Kafka / Seata） | 依赖声明 + 配置文件 |
 | 开发工具与类库 | 测试框架、Lint 工具、日志库、内部类库（如 pytest / ruff / structlog） | 依赖声明 + 源码模式 |
 
+**选项数限制：** 每个问题最多 4 个选项。当某类别检测到的技术栈 >4 项时，按职责拆分为子类别，确保每个子类别 ≤4 项。拆分规则：
+
+| 父类别 | 拆分条件 | 子类别 |
+|--------|---------|--------|
+| 框架与核心 | >4 项 | Web 框架（如 Spring Boot / FastAPI） + 工具库（如 MapStruct / Lombok / Pydantic） |
+| 数据与存储 | >4 项 | 数据库 + ORM（如 MySQL / MyBatis） + 缓存 + 迁移（如 Redis / Flyway） |
+| 基础设施与中间件 | >4 项 | 服务治理（如 Nacos / Consul） + 消息 + 事务（如 Kafka / Seata） |
+| 开发工具与类库 | >4 项 | 测试框架（如 JUnit5 / pytest） + 质量工具 + 内部类库（如 ruff / company-common-utils） |
+
+拆分后的子类别各自占一个问题槽。总问题数可能超过 4 个时，分 2 次调用。
+
 **问题格式（multiSelect）：**
 
 ```
 A_[类别]: "请确认 [类别名] 中实际在用的技术（取消勾选误检项）："
     multiSelect: true
-    options: [步骤 2 检测到的该类别技术栈项]
+    options: [步骤 2 检测到的该（子）类别技术栈项，≤4 个]
 ```
 
-示例（Java 项目）：
+示例（Java 项目，无超限）：
 ```
 A1: "请确认框架与核心中实际在用的技术："
     multiSelect: true, options: Spring Boot, MapStruct
@@ -185,6 +196,15 @@ A3: "请确认基础设施与中间件中实际在用的技术："
 
 A4: "请确认开发工具与类库中实际在用的技术："
     multiSelect: true, options: JUnit5, Checkstyle, company-common-utils
+```
+
+示例（复杂 Java 项目，"框架与核心"超限拆分）：
+```
+A1: "请确认 Web 框架中实际在用的技术："
+    multiSelect: true, options: Spring Boot, Spring Security, Spring Cloud
+
+A2: "请确认工具库中实际在用的技术："
+    multiSelect: true, options: MapStruct, Lombok
 ```
 
 **用户取消勾选的项** → 步骤 2 覆盖分析中对应规则重新标记为"不适用"。
