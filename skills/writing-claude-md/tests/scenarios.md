@@ -155,7 +155,7 @@ Tier 3：
 - [ ] 不包含 dataclass frozen（Tier 3 未被 C3 提及）
 - [ ] 日志规范是否纳入取决于已生成内容是否 < 120 行
 - [ ] ≥ 150 行
-- [ ] ≤ 200 行
+- [ ] ≤ 250 行
 - [ ] 红线回顾在末尾
 
 ---
@@ -173,7 +173,7 @@ Tier 3：
 **步骤 4b 预期行为：**
 - [ ] 输出差异建议表（旧版内容 vs 分析结果）
 - [ ] 标记：保留 / 删除 / 新增 / 合并
-- [ ] 标注文档冗余（旧版中与 README 重复的内容）
+- [ ] 标注文档覆盖（旧版中与 README 重复的内容 → 建议提纯）
 - [ ] 用户确认后合并
 
 ---
@@ -575,10 +575,8 @@ checkstyle.xml（覆盖 import 排序规则）
 ```
 
 **步骤 1 预期：**
-- 根 pom.xml 存在 → 识别为包管理配置
-- 不读取内容（内容由步骤 2 技术栈扫描处理）
-- checkstyle.xml → Linter 配置
-- README.md → 冗余源
+- 根 pom.xml 存在 → 推断 Java
+- 检测到已有 CLAUDE.md → 更新模式
 
 **步骤 2 技术栈扫描预期：**
 - 依赖声明：app/pom.xml → spring-boot-starter-web, spring-boot-starter-data-jpa, seata-spring-boot-starter；infra/pom.xml → spring-boot-starter-data-redis, nacos-config；common/pom.xml → mapstruct
@@ -591,7 +589,7 @@ checkstyle.xml（覆盖 import 排序规则）
 **步骤 2 覆盖分析预期：**
 
 Tier 1 判定覆盖（5 条分支全覆盖）：
-- 架构概览 → README.md 已覆盖 → **冗余: 引用 README.md** ✅（分支 2.1.2）
+- 架构概览 → README.md 已覆盖 → **已覆盖: 提纯写入** ✅（分支 2.1.2）
 - import 排序 → checkstyle 已覆盖 + 不反直觉 → **丢弃** ✅（分支 2.1.4）
 - DI 注入规则 → Spring Boot → 适用 → **必须保留** ✅（分支 2.1.5）
 - DTO 隔离 → 适用 → **必须保留** ✅
@@ -629,7 +627,7 @@ Tier 2：
 - Nacos 配置中心规则（@RefreshScope 动态配置）
 - Flyway 迁移规则（禁止 ddl-auto=create/update）
 - MapStruct 映射规则（componentModel="spring"）
-- 架构概览 → 引用 README.md 路径（不重复）
+- 架构概览 → 提纯 README.md 关键架构决策写入
 - import 排序规则 → 不写入（checkstyle 覆盖）
 
 **通过判定：**
@@ -641,7 +639,7 @@ Tier 2：
 - [ ] 包含拦截器式事务规则（TransactionInterceptor + 命名约定）
 - [ ] 包含 Seata 分布式事务规则
 - [ ] 包含 Flyway 迁移禁止 ddl-auto 规则
-- [ ] 不包含架构概览描述（冗余，引用 README.md）
+- [ ] 包含提纯的架构概要（从 README.md 提取，非逐条复制）
 - [ ] 不包含 import 排序规则（checkstyle 已覆盖）
 - [ ] ≥ 150 行
 
@@ -705,12 +703,12 @@ packages/shared/package.json (typescript, zod)
 | 1.7 | reference 文件不存在 → 跳过扫描 | F |
 | 1.8 | 多模块检测 | K, L |
 
-### 步骤 2：技术栈扫描 + 覆盖分析
+### 步骤 2：项目信息收集 + 技术栈扫描
 
 | 分支 | 条件 | 覆盖场景 |
 |------|------|---------|
 | 2.1.1 | Tier 1: 不适用（框架/工具未检测到） | A (DI rule) |
-| 2.1.2 | Tier 1: 冗余（文档已覆盖） | K (架构概览 → README) |
+| 2.1.2 | Tier 1: 已覆盖（文档已覆盖，提纯写入） | K (架构概览 → README) |
 | 2.1.3 | Tier 1: 必须强调（工具覆盖 + 反直觉） | A (async 规则 + FastAPI 全同步) |
 | 2.1.4 | Tier 1: 丢弃（工具覆盖 + 不反直觉） | K (import 排序 → checkstyle) |
 | 2.1.5 | Tier 1: 必须保留（无覆盖） | A (Final rule), B (DI rule) |

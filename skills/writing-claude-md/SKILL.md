@@ -20,7 +20,7 @@ description: "当需要创建或更新 CLAUDE.md 或重构项目级 AI 指令文
 
 ```dot
 digraph writing_claude_md {
-    "1. 项目探测+语言识别\n（Explore Agent）" [shape=box];
+    "1. 项目探测+语言识别\n（轻量检查）" [shape=box];
     "Q1 确认语言" [shape=diamond];
     "2. 技术栈扫描+覆盖分析\n（Explore Agent）" [shape=box];
     "3. 交互式确认\n（阶段A/B/C）" [shape=box];
@@ -28,7 +28,7 @@ digraph writing_claude_md {
     "4b. 增量更新" [shape=box];
     "5. 迭代优化\n（可选）" [shape=box];
 
-    "1. 项目探测+语言识别\n（Explore Agent）" -> "Q1 确认语言";
+    "1. 项目探测+语言识别\n（轻量检查）" -> "Q1 确认语言";
     "Q1 确认语言" -> "2. 技术栈扫描+覆盖分析\n（Explore Agent）";
     "2. 技术栈扫描+覆盖分析\n（Explore Agent）" -> "3. 交互式确认\n（阶段A/B/C）";
     "3. 交互式确认\n（阶段A/B/C）" -> "4a. 生成 CLAUDE.md\n（新建/重写）" [label="新建/重写"];
@@ -44,29 +44,7 @@ digraph writing_claude_md {
 - **不存在** → 新建模式
 - **已存在** → 记录为更新模式，同时检查是否存在跨工具互操作需求（同时使用多种 AI 编码工具）
 
-现有文件内容仅作为参考对照，不限制思维。
-
-启动 1 个 Explore Agent，扫描项目根目录收集以下信息：
-
-**必须收集：**
-- 目录结构（`ls` + 关键子目录 `find`）
-- 包管理配置文件（识别存在性 **+ 读取内容**，供步骤 2 直接使用）
-  - pyproject.toml / setup.py / requirements.txt / pom.xml / build.gradle(.kts) / package.json / Cargo.toml / go.mod
-- Linter/Formatter 配置（ruff.toml / .eslintrc / checkstyle.xml / prettier.config / rustfmt.toml / .golangci.yml）
-- pre-commit hooks（.pre-commit-config.yaml / husky / lint-staged）
-- 测试配置（pytest.ini / jest.config / vitest.config）
-- 质量门禁脚本（.quality_gate/ / scripts/ tests/ test/ 中的自定义检查）
-
-**必须收集（冗余源）：**
-- README.md 内容（标记为冗余源，后续不重复写入）
-- docs/ 目录内容概览（标记为冗余源）
-- CONTRIBUTING.md / DEVELOPMENT.md 等开发文档（标记为冗余源）
-- 现有 CLAUDE.md / AGENTS.md 内容
-
-**可选收集：**
-- CI/CD 配置（.github/workflows / .gitlab-ci.yml / Jenkinsfile）
-
-**语言推断：** 基于收集到的包管理配置文件自动推断：
+**语言推断：** 检查项目根目录以下包管理配置文件的存在性（不读取内容）：
 
 | 文件 | 推断 |
 |------|------|
@@ -76,7 +54,7 @@ digraph writing_claude_md {
 | go.mod | Go |
 | Cargo.toml | Rust |
 
-Agent 同时输出：探测结果 + 语言推断。
+输出：探测结果（模式 + 语言推断）。
 
 **AskUserQuestion 确认：**
 
@@ -89,15 +67,29 @@ Q1: "检测到项目语言为 [语言]，确认吗？"
 
 确认后加载对应的 `references/<lang>.md` 语言参考资料。
 
-## 步骤 2：技术栈扫描 + 覆盖分析
+## 步骤 2：项目信息收集 + 技术栈扫描
 
-加载语言参考资料后，启动 1 个 Explore Agent 扫描技术栈。
+加载语言参考资料后，启动 1 个 Explore Agent，一次性完成项目信息收集和技术栈扫描。
 
-**扫描优化：** Agent 直接在步骤 1 已输出的配置文件内容上匹配依赖关键字，仅对源码模式和目录信号执行额外 grep/find。
+**项目信息收集：**
+
+| 收集项 | 方法                                                                                                  | 用途 |
+|--------|-----------------------------------------------------------------------------------------------------|------|
+| 目录结构 | `ls` + 关键子目录 `find`                                                                                 | 步骤 4 架构模式推断 |
+| 包管理配置文件内容 | 仅读取已确认语言对应的配置文件                                                                                     | 技术栈扫描 + 步骤 4 命令表 |
+| Linter/Formatter 配置 | 读取存在性 + 内容（ruff.toml / .eslintrc / checkstyle.xml / prettier.config / rustfmt.toml / .golangci.yml） | 覆盖分析 |
+| pre-commit hooks | 检查 .pre-commit-config.yaml / husky / lint-staged                                                    | 覆盖分析 |
+| 测试配置 | 读取 pytest.ini / jest.config / vitest.config 等                                                       | 覆盖分析 |
+| 质量门禁脚本 | 检查 scripts/ 中的自定义检查                                                                                 | 覆盖分析 |
+| 项目上下文 | 读取 README.md，提纯项目身份和关键架构决策（不复制全文）                                                                   | 步骤 4 项目身份生成 |
+| 现有 CLAUDE.md / AGENTS.md | 读取内容（更新模式）                                                                                          | 步骤 4b 差异比较 |
+| CI/CD 配置 | 可选：检查 .github/workflows / .gitlab-ci.yml 等                                                          | 覆盖分析 |
+
+**技术栈扫描：** Agent 在已收集的配置文件内容上匹配依赖关键字，对源码模式和目录信号执行额外 grep/find。
 
 | 扫描源 | 方法 | 覆盖信号类型 |
 |--------|------|-------------|
-| 步骤 1 已输出的配置文件内容 | 内容匹配关键字 | 依赖声明类（如 `seata-spring-boot-starter`） |
+| 已收集的包管理配置文件内容 | 内容匹配关键字 | 依赖声明类（如 `seata-spring-boot-starter`） |
 | 额外配置文件（application.yml / .env 等） | 读取内容匹配关键字 | 配置项类（如 `spring.datasource.url` 含 `mysql`） |
 | 源码 | grep 注解、类名、import、Bean 定义等模式 | 源码模式类（如 `TransactionInterceptor` / `@EnableCaching`） |
 | 目录结构 | find 特定目录或文件模式 | 目录信号类（如 `db/migration/` / `templates/`） |
@@ -279,10 +271,10 @@ C3: "有哪些项目特有的、不显而易见的规则？
 └── 红线回顾                          [必选，2-3 行]
 ```
 
-**行数目标：150-200 行。** 不足 150 行时按 `structure-guide.md` 的"行数扩展规则"依次扩展。
+**行数目标：150-200 行。** 不足 150 行时按 `structure-guide.md` 的"行数扩展规则"依次扩展。200-250 行可接受，输出优化建议（可裁剪项列表），不实际修改文件。>250 行必须裁剪至 ≤250 行。
 
 **模块化判断：**
-- 预估行数 > 200 行 → 建议使用 `@path` import 拆分
+- 预估行数 > 250 行 → 建议使用 `@path` import 拆分
 - Monorepo 项目 → 建议嵌套 CLAUDE.md 策略
 - 有 canonical example 文件 → 使用引用文件模式
 
@@ -339,7 +331,7 @@ C3: "有哪些项目特有的、不显而易见的规则？
 - 说明"为什么"（帮助模型在边界情况泛化）
 
 **去冗余规则：**
-- 不重复 README/docs 中的内容，改用引用路径
+- 从 README.md 提纯项目身份和关键决策（1-3 行），不逐条复制全文
 - 不写入工具链已强制执行的规则（除非反直觉）
 - 不写入 agent 可从代码推断的信息
 
