@@ -40,21 +40,24 @@ digraph writing_claude_md {
 
 ## 步骤 1：项目探测 + 语言识别
 
-**模式检测：** 检测项目根目录是否存在 CLAUDE.md / AGENTS.md / GEMINI.md：
-- **不存在** → 新建模式
-- **已存在** → 记录为更新模式，同时检查是否存在跨工具互操作需求（同时使用多种 AI 编码工具）
+**一次性探测：** 用单条 bash 命令同时完成模式检测和语言推断（禁止逐个文件检查）：
 
-**语言推断：** 检查项目根目录以下包管理配置文件的存在性（不读取内容）：
+```bash
+ls -d CLAUDE.md AGENTS.md GEMINI.md pyproject.toml setup.py requirements.txt pom.xml build.gradle build.gradle.kts package.json go.mod Cargo.toml src/main/java 2>/dev/null || true
+```
 
-| 文件 | 推断 |
-|------|------|
+从输出中推断：
+- CLAUDE.md / AGENTS.md / GEMINI.md 存在 → 更新模式（多个同时存在则标记跨工具互操作需求）
+- 均不存在 → 新建模式
+- 语言推断规则：
+
+| 存在的文件 | 推断 |
+|-----------|------|
 | pyproject.toml / setup.py / requirements.txt | Python |
 | pom.xml / build.gradle(.kts) | Java |
-| package.json（无 src/main/java） | 前端 |
+| package.json（且无 src/main/java） | 前端 |
 | go.mod | Go |
 | Cargo.toml | Rust |
-
-输出：探测结果（模式 + 语言推断）。
 
 **AskUserQuestion 确认：**
 
@@ -69,7 +72,7 @@ Q1: "检测到项目语言为 [语言]，确认吗？"
 
 ## 步骤 2：项目信息收集 + 技术栈扫描
 
-加载语言参考资料后，启动 1 个 Explore Agent，一次性完成项目信息收集和技术栈扫描。
+加载语言参考资料后，先读取 `structure-guide.md` 到上下文（步骤 4 生成需要，提前加载避免阶段 C 结束后的等待）。然后启动 1 个 Explore Agent，一次性完成项目信息收集和技术栈扫描。
 
 **项目信息收集：**
 
@@ -154,7 +157,7 @@ Q1: "检测到项目语言为 [语言]，确认吗？"
 | 框架与核心 | 语言框架、核心库（如 Spring Boot / FastAPI / Pydantic） | 依赖声明 + 源码模式 |
 | 数据与存储 | 数据库、ORM、缓存、迁移工具（如 MySQL / MyBatis / Redis / Flyway） | 依赖声明 + 配置文件 + 目录信号 |
 | 基础设施与中间件 | 服务注册、配置中心、消息队列、分布式事务（如 Nacos / Kafka / Seata） | 依赖声明 + 配置文件 |
-| 开发工具与类库 | 测试框架、Lint 工具、日志库、内部类库（如 pytest / ruff / structlog） | 依赖声明 + 源码模式 |
+| 开发工具与类库 | 测试框架、Lint 工具、日志库、通用类库（如 pytest / ruff / structlog） | 依赖声明 + 源码模式 |
 
 **选项数限制：** 每个问题最多 4 个选项。当某类别检测到的技术栈 >4 项时，按职责拆分为子类别，确保每个子类别 ≤4 项。拆分规则：
 
@@ -163,7 +166,7 @@ Q1: "检测到项目语言为 [语言]，确认吗？"
 | 框架与核心 | >4 项 | Web 框架（如 Spring Boot / FastAPI） + 工具库（如 MapStruct / Lombok / Pydantic） |
 | 数据与存储 | >4 项 | 数据库 + ORM（如 MySQL / MyBatis） + 缓存 + 迁移（如 Redis / Flyway） |
 | 基础设施与中间件 | >4 项 | 服务治理（如 Nacos / Consul） + 消息 + 事务（如 Kafka / Seata） |
-| 开发工具与类库 | >4 项 | 测试框架（如 JUnit5 / pytest） + 质量工具 + 内部类库（如 ruff / company-common-utils） |
+| 开发工具与类库 | >4 项 | 测试框架（如 JUnit5 / pytest） + 质量工具 + 通用类库（如 ruff / company-common-utils） |
 
 拆分后的子类别各自占一个问题槽。总问题数可能超过 4 个时，分 2 次调用。
 
@@ -228,7 +231,7 @@ B1: "基于已确认技术栈，以下规范建议是否采纳？"
 
 仅保留无法从技术栈推断的策略选择和项目特有规则。
 
-**AskUserQuestion（1 次调用，3 个问题）：**
+**AskUserQuestion（1 次调用，4 个问题）：**
 
 ```
 C1: "测试策略？"
@@ -237,7 +240,13 @@ C1: "测试策略？"
 C2: "安全/边界校验要求？"
     选项: 严格边界校验 / 基本校验 / 无特殊要求
 
-C3: "有哪些项目特有的、不显而易见的规则？
+C3: "是否存在团队或公司级别的通用类库、组件等？"
+    multiSelect: true
+    options: [阶段 A 确认的通用类库列表，如 company-common-utils / internal-sdk 等]
+    → 用户可额外输入不在列表中的类库
+    → 必选，即使列表为空也必须展示，用户可通过 Other 输入任意类库名
+
+C4: "有哪些项目特有的、不显而易见的规则？
      (如: 禁止某个API、特定命名约定、维护同步义务、质量门禁等)"
     → 开放输入，用户可跳过
 ```
@@ -245,13 +254,14 @@ C3: "有哪些项目特有的、不显而易见的规则？
 阶段 C 收集的答案直接影响步骤 4 的生成内容：
 - C1 测试策略 → 步骤 4 写入对应测试框架规则（TDD流程/覆盖要求/不写入）
 - C2 安全边界 → 步骤 4 写入安全边界规则（严格校验/不写入）
-- C3 项目规则 → 步骤 4 写入维护义务段 + Tier 3 激活
+- C3 通用类库 → 步骤 4 写入通用类库依赖
+- C4 项目规则 → 步骤 4 写入维护义务 + Tier 3 激活
 
 ## 步骤 4：生成 CLAUDE.md
 
 ### 4a：全量重写（新建/重写模式）
 
-**结构设计、行数控制、措辞规则、模块化/互操作判断、质量自检**：全部按照 `structure-guide.md` 执行，不再赘述。
+**前置确认：** `structure-guide.md` 已在步骤 2 加载。无需再次读取，直接开始生成。
 
 **行数边界提醒：** 200-250 行可接受，输出优化建议（可裁剪项列表），不实际修改文件。>250 行必须裁剪至 ≤250 行。
 
@@ -285,9 +295,9 @@ C3: "有哪些项目特有的、不显而易见的规则？
 行数预算与扩展规则：按照 `structure-guide.md`「最低行数预算」+「行数扩展规则」执行。
   各 section 的激活条件（structure-guide.md 未覆盖）：
   - 核心架构规则 → Tier 1 + Tier 2 激活规则的总和
-  - 通用类库依赖 → 阶段 A 确认有内部类库时
+  - 通用类库 → C3 有选择或输入时
   - 测试规范 → C1 非无特殊要求时
-  - 维护义务 → C3 有输入时
+  - 维护义务 → C4 有输入时
 ```
 
 **去冗余规则：**
