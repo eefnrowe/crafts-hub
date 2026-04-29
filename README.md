@@ -20,6 +20,20 @@ skills/<skill-name>/
 - `SKILL.md` 前置 frontmatter 的 `name`/`description` 用于技能注册和触发
 - 方法论文档供 `SKILL.md` 交叉引用，不独立使用
 
+## 快速开始
+```json
+# 克隆仓库
+git clone https://github.com/eefnrowe/crafts-hub.git
+
+# 复制 skills 到你的项目
+cp -r crafts-hub/skills /your/project/.claude/skills      # Claude Code / Copilot CLI
+cp -r crafts-hub/skills /your/project/.cursor/skills      # Cursor
+cp -r crafts-hub/skills /your/project/.codex/skills       # Codex CLI
+cp -r crafts-hub/skills /your/project/.kiro/steering      # Kiro
+cp -r crafts-hub/skills /your/project/skills/custom       # DeerFlow 2.0
+cp -r crafts-hub/skills /your/project/.opencode/skills    # OpenCode
+```
+
 ## 方法论基础
 
 技能设计基于以下研究：
